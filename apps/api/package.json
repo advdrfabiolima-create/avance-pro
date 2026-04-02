@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "prebuild": "pnpm --filter @kumon-advance/db generate",
     "build": "tsc",
     "start": "node dist/server.js",
     "lint": "eslint src --ext .ts",
