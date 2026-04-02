@@ -40,6 +40,24 @@ interface VinculoForm {
   principal: boolean
 }
 
+// ─── Máscaras ─────────────────────────────────────────────────────────────────
+
+function maskCpf(value: string): string {
+  const d = value.replace(/\D/g, '').slice(0, 11)
+  if (d.length <= 3) return d
+  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`
+  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`
+}
+
+function maskTelefone(value: string): string {
+  const d = value.replace(/\D/g, '').slice(0, 11)
+  if (d.length <= 2) return d.length ? `(${d}` : ''
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
+}
+
 // ─── Formulário inline de novo responsável ────────────────────────────────────
 
 interface NovoResponsavelInlineProps {
@@ -60,14 +78,23 @@ function NovoResponsavelInline({ onCriado, onCancelar }: NovoResponsavelInlinePr
       setErro('Nome, e-mail e telefone são obrigatórios')
       return
     }
+    if (cpf && cpf.replace(/\D/g, '').length !== 11) {
+      setErro('CPF inválido — informe os 11 dígitos')
+      return
+    }
+    const telDigitos = telefone.replace(/\D/g, '')
+    if (telDigitos.length < 10) {
+      setErro('Telefone inválido — informe DDD + número')
+      return
+    }
     setLoading(true)
     setErro(null)
     try {
       const res = await responsaveisService.criar({
         nome: nome.trim(),
-        cpf: cpf.trim() || undefined,
+        cpf: cpf.replace(/\D/g, '').length === 11 ? cpf : undefined,
         email: email.trim(),
-        telefone: telefone.trim(),
+        telefone: telDigitos,
       } as any)
       const criado = (res.data as any)?.data ?? res.data
       onCriado({ id: criado.id, nome: criado.nome })
@@ -96,11 +123,11 @@ function NovoResponsavelInline({ onCriado, onCancelar }: NovoResponsavelInlinePr
         </div>
         <div className="space-y-1">
           <Label className="text-xs">CPF</Label>
-          <Input value={cpf} onChange={(e) => setCpf(e.target.value)} placeholder="000.000.000-00" className="h-8 text-sm" />
+          <Input value={cpf} onChange={(e) => setCpf(maskCpf(e.target.value))} placeholder="000.000.000-00" maxLength={14} className="h-8 text-sm" />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Telefone *</Label>
-          <Input value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(11) 99999-9999" className="h-8 text-sm" />
+          <Input value={telefone} onChange={(e) => setTelefone(maskTelefone(e.target.value))} placeholder="(11) 99999-9999" maxLength={15} className="h-8 text-sm" />
         </div>
         <div className="sm:col-span-2 space-y-1">
           <Label className="text-xs">E-mail *</Label>
