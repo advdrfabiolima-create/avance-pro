@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Camera } from 'lucide-react'
+import { Camera, UserPlus, X, Check, Loader2 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Label } from '../../components/ui/Label'
@@ -40,6 +40,83 @@ interface VinculoForm {
   principal: boolean
 }
 
+// ─── Formulário inline de novo responsável ────────────────────────────────────
+
+interface NovoResponsavelInlineProps {
+  onCriado: (resp: ResponsavelOpcao) => void
+  onCancelar: () => void
+}
+
+function NovoResponsavelInline({ onCriado, onCancelar }: NovoResponsavelInlineProps) {
+  const [nome, setNome] = useState('')
+  const [email, setEmail] = useState('')
+  const [telefone, setTelefone] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+
+  async function handleSalvar() {
+    if (!nome.trim() || !email.trim() || !telefone.trim()) {
+      setErro('Nome, e-mail e telefone são obrigatórios')
+      return
+    }
+    setLoading(true)
+    setErro(null)
+    try {
+      const res = await responsaveisService.criar({
+        nome: nome.trim(),
+        email: email.trim(),
+        telefone: telefone.trim(),
+      } as any)
+      const criado = (res.data as any)?.data ?? res.data
+      onCriado({ id: criado.id, nome: criado.nome })
+    } catch (e: any) {
+      setErro(e?.response?.data?.error ?? 'Erro ao criar responsável')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-primary">Novo Responsável</span>
+        <button type="button" onClick={onCancelar} className="text-muted-foreground hover:text-foreground">
+          <X size={13} />
+        </button>
+      </div>
+
+      {erro && <p className="text-xs text-destructive">{erro}</p>}
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div className="sm:col-span-2 space-y-1">
+          <Label className="text-xs">Nome *</Label>
+          <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome completo" className="h-8 text-sm" />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">E-mail *</Label>
+          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@exemplo.com" className="h-8 text-sm" />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Telefone *</Label>
+          <Input value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(11) 99999-9999" className="h-8 text-sm" />
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={onCancelar} disabled={loading}>
+          Cancelar
+        </Button>
+        <Button type="button" size="sm" onClick={handleSalvar} disabled={loading}>
+          {loading ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+          {loading ? 'Salvando...' : 'Criar e Selecionar'}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Modal principal ──────────────────────────────────────────────────────────
+
 export default function AlunoFormModal({ id, onClose, onSaved }: Props) {
   const isEdit = id !== null && id !== ''
   const [fields, setFields] = useState<FormFields>(EMPTY)
@@ -52,6 +129,7 @@ export default function AlunoFormModal({ id, onClose, onSaved }: Props) {
   const [loading, setLoading] = useState(false)
   const [loadingInit, setLoadingInit] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [novoRespParaVinculo, setNovoRespParaVinculo] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -349,7 +427,7 @@ export default function AlunoFormModal({ id, onClose, onSaved }: Props) {
                       onClick={addVinculo}
                       className="text-xs text-primary hover:underline"
                     >
-                      + Adicionar responsável
+                      + Adicionar vínculo
                     </button>
                   </div>
 
@@ -372,7 +450,18 @@ export default function AlunoFormModal({ id, onClose, onSaved }: Props) {
 
                       <div className="grid gap-3 sm:grid-cols-2">
                         <div className="space-y-1.5">
-                          <Label>Responsável</Label>
+                          <div className="flex items-center justify-between">
+                            <Label>Responsável</Label>
+                            {novoRespParaVinculo !== i && (
+                              <button
+                                type="button"
+                                onClick={() => setNovoRespParaVinculo(i)}
+                                className="flex items-center gap-1 text-xs text-primary hover:underline"
+                              >
+                                <UserPlus size={11} /> Criar novo
+                              </button>
+                            )}
+                          </div>
                           <select
                             className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                             value={v.responsavelId}
@@ -380,9 +469,7 @@ export default function AlunoFormModal({ id, onClose, onSaved }: Props) {
                           >
                             <option value="">Selecione...</option>
                             {responsaveisOpcoes.map((r) => (
-                              <option key={r.id} value={r.id}>
-                                {r.nome}
-                              </option>
+                              <option key={r.id} value={r.id}>{r.nome}</option>
                             ))}
                           </select>
                         </div>
@@ -396,6 +483,18 @@ export default function AlunoFormModal({ id, onClose, onSaved }: Props) {
                           />
                         </div>
                       </div>
+
+                      {/* Formulário inline de novo responsável */}
+                      {novoRespParaVinculo === i && (
+                        <NovoResponsavelInline
+                          onCriado={(resp) => {
+                            setResponsaveisOpcoes((prev) => [...prev, resp])
+                            setVinculo(i, 'responsavelId', resp.id)
+                            setNovoRespParaVinculo(null)
+                          }}
+                          onCancelar={() => setNovoRespParaVinculo(null)}
+                        />
+                      )}
 
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
