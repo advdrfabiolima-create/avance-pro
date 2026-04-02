@@ -1,0 +1,423 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Perfil {
+  franqueado
+  assistente
+}
+
+enum DiaSemana {
+  segunda
+  terca
+  quarta
+  quinta
+  sexta
+  sabado
+}
+
+enum FormaPagamento {
+  pix
+  cartao
+  boleto
+  dinheiro
+}
+
+enum StatusSessao {
+  avancando_bem
+  atencao
+  estagnado
+  critico
+}
+
+enum CodigoMateria {
+  MAT
+  PORT
+  ING
+}
+
+enum TipoMovimento {
+  entrada
+  saida
+}
+
+enum StatusMovimento {
+  confirmado
+  pendente
+  cancelado
+}
+
+enum OrigemMovimento {
+  mensalidade
+  matricula
+  material
+  salario
+  aluguel
+  servico
+  outro
+}
+
+enum StatusCobranca {
+  aguardando
+  enviada
+  paga
+  vencida
+  cancelada
+}
+
+enum StatusNotaFiscal {
+  rascunho
+  emitida
+  cancelada
+}
+
+enum TipoRecorrencia {
+  mensal
+  bimestral
+  trimestral
+  semestral
+  anual
+}
+
+// ─── Usuários ────────────────────────────────────────────────────────────────
+
+model Usuario {
+  id         String   @id @default(uuid())
+  nome       String   @db.VarChar(100)
+  email      String   @unique @db.VarChar(150)
+  senhaHash  String   @map("senha_hash")
+  perfil     Perfil
+  ativo      Boolean  @default(true)
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  sessoesSupervisionadas Sessao[]
+  progressoesRegistradas ProgressaoNivel[]
+  reunioes               Reuniao[]
+
+  @@map("usuarios")
+}
+
+// ─── Alunos ──────────────────────────────────────────────────────────────────
+
+model Aluno {
+  id              String    @id @default(uuid())
+  nome            String    @db.VarChar(100)
+  dataNascimento  DateTime  @map("data_nascimento") @db.Date
+  escola          String?   @db.VarChar(150)
+  serieEscolar    String?   @map("serie_escolar") @db.VarChar(50)
+  foto            String?   @db.Text
+  ativo           Boolean   @default(true)
+  criadoEm       DateTime  @default(now()) @map("criado_em")
+
+  responsaveis  ResponsavelAluno[]
+  matriculas    Matricula[]
+  turmas        TurmaAluno[]
+  sessoesAluno  SessaoAluno[]
+  pagamentos    Pagamento[]
+  reunioes      Reuniao[]
+  cobrancas     Cobranca[]
+  notasFiscais  NotaFiscal[]
+
+  @@map("alunos")
+}
+
+// ─── Responsáveis ────────────────────────────────────────────────────────────
+
+model Responsavel {
+  id           String   @id @default(uuid())
+  nome         String   @db.VarChar(100)
+  cpf          String?  @unique @db.VarChar(14)
+  email        String   @db.VarChar(150)
+  telefone     String   @db.VarChar(20)
+  telefoneAlt  String?  @map("telefone_alt") @db.VarChar(20)
+  criadoEm    DateTime @default(now()) @map("criado_em")
+
+  alunos       ResponsavelAluno[]
+  pagamentos   Pagamento[]
+  reunioes     Reuniao[]
+  notasFiscais NotaFiscal[]
+
+  @@map("responsaveis")
+}
+
+model ResponsavelAluno {
+  id             String  @id @default(uuid())
+  alunoId        String  @map("aluno_id")
+  responsavelId  String  @map("responsavel_id")
+  parentesco     String  @db.VarChar(50)
+  principal      Boolean @default(false)
+
+  aluno       Aluno       @relation(fields: [alunoId], references: [id])
+  responsavel Responsavel @relation(fields: [responsavelId], references: [id])
+
+  @@unique([alunoId, responsavelId])
+  @@map("responsaveis_aluno")
+}
+
+// ─── Matérias e Níveis ───────────────────────────────────────────────────────
+
+model Materia {
+  id     String        @id @default(uuid())
+  nome   String        @db.VarChar(50)
+  codigo CodigoMateria @unique
+
+  niveis     Nivel[]
+  matriculas Matricula[]
+
+  @@map("materias")
+}
+
+model Nivel {
+  id        String @id @default(uuid())
+  materiaId String @map("materia_id")
+  codigo    String @db.VarChar(5)
+  descricao String @db.VarChar(255)
+  ordem     Int
+
+  materia             Materia           @relation(fields: [materiaId], references: [id])
+  matriculasAtuais    Matricula[]       @relation("NivelAtual")
+  sessoesAluno        SessaoAluno[]
+  progressoesAnteriores ProgressaoNivel[] @relation("NivelAnterior")
+  progressoesNovas    ProgressaoNivel[] @relation("NivelNovo")
+
+  @@unique([materiaId, codigo])
+  @@map("niveis")
+}
+
+// ─── Matrículas ──────────────────────────────────────────────────────────────
+
+model Matricula {
+  id            String    @id @default(uuid())
+  alunoId       String    @map("aluno_id")
+  materiaId     String    @map("materia_id")
+  nivelAtualId  String    @map("nivel_atual_id")
+  dataInicio    DateTime  @map("data_inicio") @db.Date
+  dataFim       DateTime? @map("data_fim") @db.Date
+  ativo         Boolean   @default(true)
+
+  aluno       Aluno       @relation(fields: [alunoId], references: [id])
+  materia     Materia     @relation(fields: [materiaId], references: [id])
+  nivelAtual  Nivel       @relation("NivelAtual", fields: [nivelAtualId], references: [id])
+
+  sessoesAluno SessaoAluno[]
+  progressoes  ProgressaoNivel[]
+  pagamentos   Pagamento[]
+
+  @@map("matriculas")
+}
+
+model ProgressaoNivel {
+  id               String   @id @default(uuid())
+  matriculaId      String   @map("matricula_id")
+  nivelAnteriorId  String   @map("nivel_anterior_id")
+  nivelNovoId      String   @map("nivel_novo_id")
+  data             DateTime @db.Date
+  usuarioId        String   @map("usuario_id")
+  motivo           String?  @db.Text
+
+  matricula     Matricula @relation(fields: [matriculaId], references: [id])
+  nivelAnterior Nivel     @relation("NivelAnterior", fields: [nivelAnteriorId], references: [id])
+  nivelNovo     Nivel     @relation("NivelNovo", fields: [nivelNovoId], references: [id])
+  usuario       Usuario   @relation(fields: [usuarioId], references: [id])
+
+  @@map("progressao_niveis")
+}
+
+// ─── Turmas e Sessões ────────────────────────────────────────────────────────
+
+model Turma {
+  id             String    @id @default(uuid())
+  diaSemana      DiaSemana @map("dia_semana")
+  horarioInicio  String    @map("horario_inicio") @db.VarChar(5)
+  horarioFim     String    @map("horario_fim") @db.VarChar(5)
+  capacidade     Int
+
+  alunos  TurmaAluno[]
+  sessoes Sessao[]
+
+  @@map("turmas")
+}
+
+model TurmaAluno {
+  id          String    @id @default(uuid())
+  turmaId     String    @map("turma_id")
+  alunoId     String    @map("aluno_id")
+  dataInicio  DateTime  @map("data_inicio") @db.Date
+  dataFim     DateTime? @map("data_fim") @db.Date
+
+  turma Turma @relation(fields: [turmaId], references: [id])
+  aluno Aluno @relation(fields: [alunoId], references: [id])
+
+  @@map("turma_alunos")
+}
+
+model Sessao {
+  id           String   @id @default(uuid())
+  turmaId      String   @map("turma_id")
+  data         DateTime @db.Date
+  assistenteId String   @map("assistente_id")
+  observacoes  String?  @db.Text
+  criadoEm    DateTime @default(now()) @map("criado_em")
+
+  turma      Turma       @relation(fields: [turmaId], references: [id])
+  assistente Usuario     @relation(fields: [assistenteId], references: [id])
+  alunos     SessaoAluno[]
+
+  @@unique([turmaId, data])
+  @@map("sessoes")
+}
+
+model SessaoAluno {
+  id             String        @id @default(uuid())
+  sessaoId       String        @map("sessao_id")
+  alunoId        String        @map("aluno_id")
+  matriculaId    String        @map("matricula_id")
+  presente       Boolean       @default(true)
+  folhasFeitas   Int?          @map("folhas_feitas")
+  acertos        Int?
+  erros          Int?
+  tempoMinutos   Int?          @map("tempo_minutos")
+  nivelId        String?       @map("nivel_id")
+  materialCodigo String?       @map("material_codigo") @db.VarChar(20)
+  statusSessao   StatusSessao? @map("status_sessao")
+  observacao     String?       @db.Text
+
+  sessao    Sessao    @relation(fields: [sessaoId], references: [id])
+  aluno     Aluno     @relation(fields: [alunoId], references: [id])
+  matricula Matricula @relation(fields: [matriculaId], references: [id])
+  nivel     Nivel?    @relation(fields: [nivelId], references: [id])
+
+  @@unique([sessaoId, alunoId, matriculaId])
+  @@map("sessao_alunos")
+}
+
+// ─── Reuniões ────────────────────────────────────────────────────────────────
+
+model Reuniao {
+  id             String   @id @default(uuid())
+  alunoId        String   @map("aluno_id")
+  responsavelId  String?  @map("responsavel_id")
+  usuarioId      String   @map("usuario_id")
+  data           DateTime @db.Date
+  descricao      String   @db.Text
+  tipo           String   @default("geral") @db.VarChar(50)
+  criadoEm      DateTime @default(now()) @map("criado_em")
+
+  aluno       Aluno        @relation(fields: [alunoId], references: [id])
+  responsavel Responsavel? @relation(fields: [responsavelId], references: [id])
+  usuario     Usuario      @relation(fields: [usuarioId], references: [id])
+
+  @@map("reunioes")
+}
+
+// ─── Pagamentos / Mensalidades ───────────────────────────────────────────────
+
+model Pagamento {
+  id             String          @id @default(uuid())
+  alunoId        String          @map("aluno_id")
+  matriculaId    String          @map("matricula_id")
+  responsavelId  String          @map("responsavel_id")
+  mesReferencia  DateTime        @map("mes_referencia") @db.Date
+  valor          Decimal         @db.Decimal(10, 2)
+  vencimento     DateTime        @db.Date
+  pagoEm         DateTime?       @map("pago_em") @db.Date
+  formaPagamento FormaPagamento? @map("forma_pagamento")
+  observacao     String?         @db.Text
+  conciliado     Boolean         @default(false)
+  conciliadoEm   DateTime?       @map("conciliado_em") @db.Date
+
+  aluno       Aluno       @relation(fields: [alunoId], references: [id])
+  matricula   Matricula   @relation(fields: [matriculaId], references: [id])
+  responsavel Responsavel @relation(fields: [responsavelId], references: [id])
+  cobrancas   Cobranca[]
+  movimentos  MovimentoFinanceiro[]
+
+  @@unique([matriculaId, mesReferencia])
+  @@map("pagamentos")
+}
+
+// ─── Cobranças ───────────────────────────────────────────────────────────────
+
+model Cobranca {
+  id           String         @id @default(uuid())
+  alunoId      String         @map("aluno_id")
+  pagamentoId  String?        @map("pagamento_id")
+  valor        Decimal        @db.Decimal(10, 2)
+  vencimento   DateTime       @db.Date
+  status       StatusCobranca @default(aguardando)
+  descricao    String?        @db.VarChar(255)
+  nossoNumero  String?        @map("nosso_numero") @db.VarChar(50)
+  linhaDigitavel String?      @map("linha_digitavel") @db.VarChar(100)
+  criadoEm    DateTime       @default(now()) @map("criado_em")
+  pagoEm       DateTime?      @map("pago_em") @db.Date
+
+  aluno     Aluno      @relation(fields: [alunoId], references: [id])
+  pagamento Pagamento? @relation(fields: [pagamentoId], references: [id])
+
+  @@map("cobrancas")
+}
+
+// ─── Movimento Financeiro ────────────────────────────────────────────────────
+
+model MovimentoFinanceiro {
+  id           String          @id @default(uuid())
+  tipo         TipoMovimento
+  origem       OrigemMovimento @default(outro)
+  descricao    String          @db.VarChar(255)
+  valor        Decimal         @db.Decimal(10, 2)
+  data         DateTime        @db.Date
+  status       StatusMovimento @default(confirmado)
+  pagamentoId  String?         @map("pagamento_id")
+  observacao   String?         @db.Text
+  criadoEm    DateTime        @default(now()) @map("criado_em")
+
+  pagamento Pagamento? @relation(fields: [pagamentoId], references: [id])
+
+  @@map("movimentos_financeiros")
+}
+
+// ─── Recorrências ────────────────────────────────────────────────────────────
+
+model ConfigRecorrencia {
+  id              String          @id @default(uuid())
+  nome            String          @db.VarChar(100)
+  valor           Decimal         @db.Decimal(10, 2)
+  periodicidade   TipoRecorrencia
+  diaVencimento   Int             @map("dia_vencimento")
+  dataInicio      DateTime        @map("data_inicio") @db.Date
+  dataFim         DateTime?       @map("data_fim") @db.Date
+  ativo           Boolean         @default(true)
+  descricao       String?         @db.VarChar(255)
+  criadoEm       DateTime        @default(now()) @map("criado_em")
+
+  @@map("config_recorrencias")
+}
+
+// ─── Notas Fiscais ───────────────────────────────────────────────────────────
+
+model NotaFiscal {
+  id            String           @id @default(uuid())
+  alunoId       String           @map("aluno_id")
+  responsavelId String?          @map("responsavel_id")
+  numero        String?          @db.VarChar(50)
+  valor         Decimal          @db.Decimal(10, 2)
+  competencia   DateTime         @db.Date
+  status        StatusNotaFiscal @default(rascunho)
+  descricao     String?          @db.VarChar(255)
+  xmlUrl        String?          @map("xml_url") @db.VarChar(500)
+  criadoEm     DateTime         @default(now()) @map("criado_em")
+  emitidaEm    DateTime?        @map("emitida_em")
+
+  aluno       Aluno        @relation(fields: [alunoId], references: [id])
+  responsavel Responsavel? @relation(fields: [responsavelId], references: [id])
+
+  @@map("notas_fiscais")
+}
