@@ -184,7 +184,7 @@ export default function RecorrenciasPage() {
 
       <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
         <p className="text-sm text-amber-700">
-          <strong>Fase 2 — Recorrências:</strong> Configure padrões de cobrança para geração automática de mensalidades.
+          <strong>Recorrências:</strong> Configure padrões de cobrança para geração automática de mensalidades.
           A geração automática será ativada quando integrada ao agendador.
         </p>
       </div>

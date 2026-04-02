@@ -234,7 +234,7 @@ export default function CobrancasPage() {
 
       <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
         <p className="text-sm text-amber-700">
-          <strong>Fase 2 — Cobranças:</strong> Estrutura preparada para integração com gateway de pagamento (Asaas, PagSeguro, etc.).
+          <strong>Cobranças:</strong> Estrutura preparada para integração com gateway de pagamento (Asaas, PagSeguro, etc.).
           Atualmente funciona como controle manual.
         </p>
       </div>

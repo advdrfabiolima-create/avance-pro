@@ -217,7 +217,7 @@ export default function NotasFiscaisPage() {
 
       <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
         <p className="text-sm text-blue-700">
-          <strong>Fase 3 — Notas Fiscais:</strong> Estrutura pronta para integração com a prefeitura via API NFS-e.
+          <strong>Notas Fiscais:</strong> Estrutura pronta para integração com a prefeitura via API NFS-e.
           Crie rascunhos agora e configure a emissão automática futuramente.
         </p>
       </div>
