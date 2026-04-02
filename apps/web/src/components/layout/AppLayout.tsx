@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -40,12 +40,14 @@ interface NavItem {
 
 interface NavGroup {
   label: string
+  defaultOpen?: boolean
   items: NavItem[]
 }
 
 const navGroups: NavGroup[] = [
   {
     label: 'Geral',
+    defaultOpen: true,
     items: [
       { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={14} /> },
       { to: '/alunos', label: 'Alunos', icon: <GraduationCap size={14} /> },
@@ -54,6 +56,7 @@ const navGroups: NavGroup[] = [
   },
   {
     label: 'Operacional',
+    defaultOpen: true,
     items: [
       { to: '/turmas', label: 'Turmas', icon: <CalendarDays size={14} /> },
       { to: '/disciplinas', label: 'Disciplinas', icon: <BookOpen size={14} /> },
@@ -66,12 +69,14 @@ const navGroups: NavGroup[] = [
   },
   {
     label: 'Equipe',
+    defaultOpen: true,
     items: [
       { to: '/auxiliares', label: 'Auxiliares', icon: <UserCheck size={14} /> },
     ],
   },
   {
     label: 'Financeiro',
+    defaultOpen: false,
     items: [
       { to: '/pagamentos', label: 'Mensalidades', icon: <DollarSign size={14} /> },
       { to: '/movimentos', label: 'Mov. Financeiro', icon: <ArrowLeftRight size={14} /> },
@@ -82,6 +87,7 @@ const navGroups: NavGroup[] = [
   },
   {
     label: 'Avançado',
+    defaultOpen: false,
     items: [
       { to: '/notas-fiscais', label: 'Notas Fiscais', icon: <Landmark size={14} /> },
       { to: '/importacoes', label: 'Importações', icon: <Upload size={14} /> },
@@ -90,6 +96,7 @@ const navGroups: NavGroup[] = [
   },
   {
     label: 'Admin',
+    defaultOpen: false,
     items: [
       { to: '/usuarios', label: 'Usuários', icon: <UserCog size={14} />, onlyFranqueado: true },
       { to: '/configuracoes', label: 'Configurações', icon: <Settings size={14} /> },
@@ -99,6 +106,33 @@ const navGroups: NavGroup[] = [
 ]
 
 const allNavItems = navGroups.flatMap((g) => g.items)
+const LS_KEY = 'avancepro_sidebar_groups'
+
+// ─── Persistência ─────────────────────────────────────────────────────────────
+
+function loadOpenGroups(activeLabel: string | null): Set<string> {
+  try {
+    const stored = localStorage.getItem(LS_KEY)
+    if (stored) {
+      const parsed = JSON.parse(stored) as string[]
+      const set = new Set(parsed)
+      if (activeLabel) set.add(activeLabel) // rota ativa sempre abre o grupo
+      return set
+    }
+  } catch {}
+  // Primeira visita: usar defaults + grupo ativo
+  const defaults = new Set(navGroups.filter((g) => g.defaultOpen).map((g) => g.label))
+  if (activeLabel) defaults.add(activeLabel)
+  return defaults
+}
+
+function saveOpenGroups(groups: Set<string>) {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify([...groups]))
+  } catch {}
+}
+
+// ─── PageTitle ────────────────────────────────────────────────────────────────
 
 function PageTitle() {
   const location = useLocation()
@@ -110,6 +144,8 @@ function PageTitle() {
   )
 }
 
+// ─── SidebarContent ───────────────────────────────────────────────────────────
+
 interface SidebarContentProps {
   perfil: string
   nome: string
@@ -120,19 +156,38 @@ interface SidebarContentProps {
 function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps) {
   const location = useLocation()
 
-  function getActiveGroup() {
-    for (const group of navGroups) {
-      if (group.items.some((item) => location.pathname.startsWith(item.to))) {
-        return group.label
-      }
-    }
-    return navGroups[0]?.label ?? ''
-  }
+  const activeGroupLabel =
+    navGroups.find((g) =>
+      g.items.some((item) => location.pathname.startsWith(item.to))
+    )?.label ?? null
 
-  const [openGroup, setOpenGroup] = useState<string>(getActiveGroup)
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() =>
+    loadOpenGroups(activeGroupLabel)
+  )
+
+  // Quando a rota muda, garante que o grupo ativo está aberto
+  useEffect(() => {
+    if (!activeGroupLabel) return
+    setOpenGroups((prev) => {
+      if (prev.has(activeGroupLabel)) return prev
+      const next = new Set(prev)
+      next.add(activeGroupLabel)
+      saveOpenGroups(next)
+      return next
+    })
+  }, [activeGroupLabel])
 
   function toggleGroup(label: string) {
-    setOpenGroup((prev) => (prev === label ? '' : label))
+    setOpenGroups((prev) => {
+      const next = new Set(prev)
+      if (next.has(label)) {
+        next.delete(label)
+      } else {
+        next.add(label)
+      }
+      saveOpenGroups(next)
+      return next
+    })
   }
 
   return (
@@ -166,8 +221,10 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
           )
           if (visibleItems.length === 0) return null
 
-          const isOpen = openGroup === group.label
-          const hasActive = visibleItems.some((item) => location.pathname.startsWith(item.to))
+          const isOpen = openGroups.has(group.label)
+          const hasActive = visibleItems.some((item) =>
+            location.pathname.startsWith(item.to)
+          )
 
           return (
             <div key={group.label} className={groupIdx > 0 ? 'mt-1' : ''}>
@@ -175,7 +232,7 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
               <button
                 onClick={() => toggleGroup(group.label)}
                 className="group/hdr flex w-full items-center justify-between rounded-md px-2 py-1.5 transition-colors duration-150"
-                style={{ marginBottom: '1px' }}
+                style={{ marginBottom: '2px' }}
               >
                 <span
                   className="text-[12px] font-semibold uppercase tracking-[0.05em] transition-colors duration-150 group-hover/hdr:text-slate-500"
@@ -185,44 +242,50 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
                 </span>
                 <ChevronDown
                   size={11}
-                  className={cn(
-                    'transition-all duration-200 group-hover/hdr:opacity-80',
-                    isOpen ? 'rotate-180' : ''
-                  )}
-                  style={{ color: hasActive ? '#6366F1' : '#CBD5E1' }}
+                  className="transition-transform duration-200 group-hover/hdr:opacity-80"
+                  style={{
+                    color: hasActive ? '#6366F1' : '#CBD5E1',
+                    transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                  }}
                 />
               </button>
 
-              {/* Itens do grupo */}
-              {isOpen && (
-                <ul className="mb-1.5 space-y-px">
-                  {visibleItems.map((item) => (
-                    <li key={item.to}>
-                      <NavLink
-                        to={item.to}
-                        onClick={onClose}
-                        className={({ isActive }) =>
-                          cn(
-                            'flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[14px] transition-all duration-150',
-                            isActive
-                              ? 'font-semibold shadow-[inset_2px_0_0_0_#4F46E5]'
-                              : 'font-medium hover:bg-[#F1F5F9]'
-                          )
-                        }
-                        style={({ isActive }) => ({
-                          color: isActive ? '#4338CA' : '#334155',
-                          background: isActive ? '#EEF2FF' : undefined,
-                        })}
-                      >
-                        <span className="shrink-0 flex items-center">
-                          {item.icon}
-                        </span>
-                        <span className="leading-none">{item.label}</span>
-                      </NavLink>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              {/* Itens com animação CSS grid-template-rows */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateRows: isOpen ? '1fr' : '0fr',
+                  transition: 'grid-template-rows 200ms ease',
+                }}
+              >
+                <div className="overflow-hidden">
+                  <ul className="mb-2 space-y-px">
+                    {visibleItems.map((item) => (
+                      <li key={item.to}>
+                        <NavLink
+                          to={item.to}
+                          onClick={onClose}
+                          className={({ isActive }) =>
+                            cn(
+                              'flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[14px] transition-all duration-150',
+                              isActive
+                                ? 'font-semibold shadow-[inset_2px_0_0_0_#4F46E5]'
+                                : 'font-medium hover:bg-[#F1F5F9]'
+                            )
+                          }
+                          style={({ isActive }) => ({
+                            color: isActive ? '#4338CA' : '#334155',
+                            background: isActive ? '#EEF2FF' : undefined,
+                          })}
+                        >
+                          <span className="shrink-0 flex items-center">{item.icon}</span>
+                          <span className="leading-none">{item.label}</span>
+                        </NavLink>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
             </div>
           )
         })}
@@ -236,38 +299,21 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
 
       {/* ── Footer: usuário ───────────────────────────────────────────────────── */}
       <div className="px-3 pb-3" style={{ borderTop: '1px solid #F1F5F9' }}>
-        <div
-          className="mt-3 flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors duration-150 hover:bg-[#F1F5F9] group/user"
-        >
-          {/* Avatar */}
+        <div className="mt-3 flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors duration-150 hover:bg-[#F1F5F9] group/user">
           <div
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold uppercase"
-            style={{
-              background: '#EEF2FF',
-              color: '#4338CA',
-              boxShadow: '0 0 0 1.5px #C7D2FE',
-            }}
+            style={{ background: '#EEF2FF', color: '#4338CA', boxShadow: '0 0 0 1.5px #C7D2FE' }}
           >
             {nome.charAt(0)}
           </div>
-
-          {/* Nome + perfil */}
           <div className="min-w-0 flex-1">
-            <p
-              className="truncate text-[13px] font-semibold leading-tight"
-              style={{ color: '#1E293B' }}
-            >
+            <p className="truncate text-[13px] font-semibold leading-tight" style={{ color: '#1E293B' }}>
               {nome}
             </p>
-            <p
-              className="truncate text-[12px] leading-tight capitalize mt-0.5"
-              style={{ color: '#64748B' }}
-            >
+            <p className="truncate text-[12px] leading-tight capitalize mt-0.5" style={{ color: '#64748B' }}>
               {perfil}
             </p>
           </div>
-
-          {/* Logout */}
           <button
             onClick={onLogout}
             className="shrink-0 rounded-md p-1.5 transition-all duration-150 hover:bg-red-50 hover:text-red-500 opacity-0 group-hover/user:opacity-100"
@@ -282,6 +328,8 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
     </div>
   )
 }
+
+// ─── AppLayout ────────────────────────────────────────────────────────────────
 
 export default function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -319,7 +367,6 @@ export default function AppLayout() {
 
       {/* Main area */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Header */}
         <header
           className="flex h-[60px] shrink-0 items-center gap-3 px-4 md:px-6"
           style={{ borderBottom: '1px solid #F1F5F9', background: '#FFFFFF' }}
@@ -335,7 +382,6 @@ export default function AppLayout() {
           <PageTitle />
         </header>
 
-        {/* Page content */}
         <main className="flex-1 overflow-y-auto px-4 py-6 md:px-6">
           <Outlet />
         </main>
