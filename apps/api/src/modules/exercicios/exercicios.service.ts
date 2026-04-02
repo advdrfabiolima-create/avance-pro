@@ -98,7 +98,7 @@ export const exerciciosService = {
         ordem: data.ordem,
         pontos: data.pontos,
         alternativas: data.alternativas
-          ? { create: data.alternativas }
+          ? { create: data.alternativas as any }
           : undefined,
       },
       include: {
@@ -155,7 +155,7 @@ export const exerciciosService = {
     if (data.alternativas) {
       await prisma.alternativa.deleteMany({ where: { questaoId } })
       await prisma.alternativa.createMany({
-        data: data.alternativas.map((a) => ({ ...a, questaoId })),
+        data: data.alternativas.map((a) => ({ ...a, questaoId })) as any,
       })
     }
 
