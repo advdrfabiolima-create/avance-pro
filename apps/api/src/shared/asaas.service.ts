@@ -1,4 +1,3 @@
-import axios from 'axios'
 import { prisma } from '@kumon-advance/db'
 
 function getBaseUrl(ambiente: string) {
@@ -13,12 +12,19 @@ async function getConfig() {
   return config
 }
 
-function asaasClient(apiKey: string, ambiente: string) {
-  return axios.create({
-    baseURL: getBaseUrl(ambiente),
+async function asaasRequest(apiKey: string, ambiente: string, method: string, path: string, body?: unknown) {
+  const url = `${getBaseUrl(ambiente)}${path}`
+  const res = await fetch(url, {
+    method,
     headers: { access_token: apiKey, 'Content-Type': 'application/json' },
-    timeout: 15000,
+    body: body ? JSON.stringify(body) : undefined,
   })
+  const data = await res.json() as any
+  if (!res.ok) {
+    const msg = data?.errors?.[0]?.description ?? data?.message ?? `Asaas error ${res.status}`
+    throw { statusCode: res.status >= 500 ? 502 : 422, message: msg }
+  }
+  return data
 }
 
 export async function asaasGetOrCreateCustomer(params: {
@@ -28,69 +34,58 @@ export async function asaasGetOrCreateCustomer(params: {
   cpf?: string
 }) {
   const config = await getConfig()
-  const client = asaasClient(config.apiKey, config.ambiente)
 
-  // Tentar buscar pelo CPF se disponível
   if (params.cpf) {
     const cpfLimpo = params.cpf.replace(/\D/g, '')
-    const busca = await client.get('/customers', { params: { cpfCnpj: cpfLimpo, limit: 1 } })
-    const existente = busca.data?.data?.[0]
+    const busca = await asaasRequest(config.apiKey, config.ambiente, 'GET', `/customers?cpfCnpj=${cpfLimpo}&limit=1`)
+    const existente = busca?.data?.[0]
     if (existente) return existente.id as string
   }
 
-  // Criar novo customer
-  const res = await client.post('/customers', {
+  const res = await asaasRequest(config.apiKey, config.ambiente, 'POST', '/customers', {
     name: params.nome,
     email: params.email,
     mobilePhone: params.telefone?.replace(/\D/g, '') || undefined,
     cpfCnpj: params.cpf?.replace(/\D/g, '') || undefined,
   })
-  return res.data.id as string
+  return res.id as string
 }
 
 export async function asaasCriarCobranca(params: {
   customerId: string
   valor: number
-  vencimento: string   // YYYY-MM-DD
+  vencimento: string
   descricao: string
   tipo: 'PIX' | 'BOLETO'
 }) {
   const config = await getConfig()
-  const client = asaasClient(config.apiKey, config.ambiente)
-
-  const res = await client.post('/payments', {
+  return asaasRequest(config.apiKey, config.ambiente, 'POST', '/payments', {
     customer: params.customerId,
     billingType: params.tipo,
     value: params.valor,
     dueDate: params.vencimento,
     description: params.descricao,
-    externalReference: undefined,
-  })
-
-  return res.data as {
-    id: string
-    nossoNumero?: string
-    bankSlipUrl?: string
-    invoiceUrl?: string
-    status: string
-  }
+  }) as Promise<{ id: string; nossoNumero?: string; bankSlipUrl?: string; status: string }>
 }
 
 export async function asaasBuscarPixQrCode(asaasPaymentId: string) {
   const config = await getConfig()
-  const client = asaasClient(config.apiKey, config.ambiente)
-  const res = await client.get(`/payments/${asaasPaymentId}/pixQrCode`)
-  return res.data as { encodedImage: string; payload: string; expirationDate: string }
+  return asaasRequest(config.apiKey, config.ambiente, 'GET', `/payments/${asaasPaymentId}/pixQrCode`) as Promise<{
+    encodedImage: string
+    payload: string
+    expirationDate: string
+  }>
 }
 
 export async function asaasCancelarCobranca(asaasPaymentId: string) {
   const config = await getConfig()
-  const client = asaasClient(config.apiKey, config.ambiente)
-  await client.delete(`/payments/${asaasPaymentId}`)
+  await asaasRequest(config.apiKey, config.ambiente, 'DELETE', `/payments/${asaasPaymentId}`)
 }
 
 export async function asaasTestarConexao(apiKey: string, ambiente: string) {
-  const client = asaasClient(apiKey, ambiente)
-  const res = await client.get('/myAccount')
-  return res.data as { name: string; email: string; commercialName?: string }
+  return asaasRequest(apiKey, ambiente, 'GET', '/myAccount') as Promise<{
+    name: string
+    email: string
+    commercialName?: string
+  }>
 }
