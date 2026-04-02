@@ -141,7 +141,7 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
     <div className="flex h-full flex-col bg-card">
       {/* Logo */}
       <div className="flex h-14 items-center gap-2 border-b border-border/60 px-6">
-        <img src="/logo_color.png" alt="Avance Pro" className="h-9 w-auto" />
+        <img src="/logo_color.png" alt="Avance Pro" className="h-11 w-auto" />
         {onClose && (
           <button
             onClick={onClose}
