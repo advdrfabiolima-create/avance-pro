@@ -7,7 +7,27 @@ export default function GuiaPage() {
       {/* CSS de impressão */}
       <style>{`
         @media print {
-          .no-print { display: none !important; }
+          /* Remove restrições de altura do layout */
+          html, body {
+            height: auto !important;
+            overflow: visible !important;
+          }
+          /* Esconde sidebar e header do AppLayout */
+          aside,
+          header,
+          .no-print {
+            display: none !important;
+          }
+          /* Libera o container principal do layout */
+          .flex.h-screen,
+          .flex.flex-1.flex-col.overflow-hidden,
+          main {
+            display: block !important;
+            height: auto !important;
+            overflow: visible !important;
+            padding: 0 !important;
+          }
+          /* Tipografia */
           body { font-size: 12px; }
           h1 { font-size: 20px; }
           h2 { font-size: 15px; page-break-after: avoid; }
