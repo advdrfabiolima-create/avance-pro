@@ -365,10 +365,14 @@ model Cobranca {
   vencimento   DateTime       @db.Date
   status       StatusCobranca @default(aguardando)
   descricao    String?        @db.VarChar(255)
-  nossoNumero  String?        @map("nosso_numero") @db.VarChar(50)
-  linhaDigitavel String?      @map("linha_digitavel") @db.VarChar(100)
-  criadoEm    DateTime       @default(now()) @map("criado_em")
-  pagoEm       DateTime?      @map("pago_em") @db.Date
+  nossoNumero    String?        @map("nosso_numero") @db.VarChar(100)
+  linhaDigitavel String?        @map("linha_digitavel") @db.VarChar(200)
+  asaasId        String?        @map("asaas_id") @db.VarChar(100)
+  pixQrCode      String?        @map("pix_qr_code") @db.Text
+  pixChave       String?        @map("pix_chave") @db.Text
+  boletoUrl      String?        @map("boleto_url") @db.Text
+  criadoEm      DateTime       @default(now()) @map("criado_em")
+  pagoEm         DateTime?      @map("pago_em") @db.Date
 
   aluno     Aluno      @relation(fields: [alunoId], references: [id])
   pagamento Pagamento? @relation(fields: [pagamentoId], references: [id])
@@ -431,6 +435,19 @@ model NotaFiscal {
   responsavel Responsavel? @relation(fields: [responsavelId], references: [id])
 
   @@map("notas_fiscais")
+}
+
+// ─── Gateway de Pagamento ─────────────────────────────────────────────────────
+
+model ConfigGateway {
+  id        String   @id @default(uuid())
+  tipo      String   @db.VarChar(50)
+  ambiente  String   @db.VarChar(20)
+  apiKey    String   @db.Text @map("api_key")
+  ativo     Boolean  @default(true)
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  @@map("config_gateway")
 }
 
 // ─── Exercícios e Correção Inteligente ───────────────────────────────────────

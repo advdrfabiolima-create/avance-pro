@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Receipt, Plus, X } from 'lucide-react'
+import { Receipt, Plus, X, Send, QrCode, ExternalLink } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Label } from '../../components/ui/Label'
@@ -10,6 +10,7 @@ import EmptyState from '../../components/shared/EmptyState'
 import AlunoAvatar from '../../components/shared/AlunoAvatar'
 import { cobrancasService, type Cobranca, type StatusCobranca } from '../../services/cobrancas.service'
 import { alunosService } from '../../services/alunos.service'
+import { gatewayService } from '../../services/gateway.service'
 
 const STATUS_LABELS: Record<StatusCobranca, string> = {
   aguardando: 'Aguardando',
@@ -166,6 +167,123 @@ function ModalNovaCobranca({ onClose, onSaved }: ModalNovaCobrancaProps) {
   )
 }
 
+// ─── Modal Enviar Asaas ───────────────────────────────────────────────────────
+
+interface ModalEnviarAsaasProps {
+  cobranca: Cobranca
+  onClose: () => void
+  onSent: () => void
+}
+
+function ModalEnviarAsaas({ cobranca, onClose, onSent }: ModalEnviarAsaasProps) {
+  const [tipo, setTipo] = useState<'PIX' | 'BOLETO'>('PIX')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [resultado, setResultado] = useState<any>(null)
+
+  async function handleEnviar() {
+    setLoading(true); setError(null)
+    try {
+      const res = await gatewayService.enviarCobranca(cobranca.id, tipo)
+      setResultado(res.data?.data)
+      onSent()
+    } catch (e: any) {
+      setError(e?.response?.data?.error ?? 'Erro ao enviar cobrança')
+    } finally { setLoading(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-md rounded-xl border bg-card shadow-lg">
+        <div className="flex items-center justify-between border-b px-6 py-4">
+          <h2 className="text-lg font-semibold">Enviar via Asaas</h2>
+          <button onClick={onClose} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent"><X size={16} /></button>
+        </div>
+
+        <div className="space-y-4 px-6 py-5">
+          <div>
+            <p className="text-sm text-muted-foreground">Aluno: <span className="font-medium text-foreground">{cobranca.aluno.nome}</span></p>
+            <p className="text-sm text-muted-foreground">Valor: <span className="font-medium text-foreground">{formatarValor(Number(cobranca.valor))}</span></p>
+            <p className="text-sm text-muted-foreground">Vencimento: <span className="font-medium text-foreground">{formatarData(cobranca.vencimento)}</span></p>
+          </div>
+
+          {!resultado && (
+            <>
+              <div className="space-y-1.5">
+                <Label>Tipo de cobrança</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['PIX', 'BOLETO'] as const).map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setTipo(t)}
+                      className={`flex items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${
+                        tipo === t ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:bg-muted/30'
+                      }`}
+                    >
+                      {t === 'PIX' ? <QrCode size={16} /> : <Receipt size={16} />}
+                      {t === 'BOLETO' ? 'Boleto' : 'Pix'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+
+              <div className="flex justify-end gap-2 border-t pt-4">
+                <Button variant="outline" onClick={onClose} disabled={loading}>Cancelar</Button>
+                <Button onClick={handleEnviar} disabled={loading}>
+                  <Send size={14} />
+                  {loading ? 'Enviando...' : 'Enviar Cobrança'}
+                </Button>
+              </div>
+            </>
+          )}
+
+          {resultado && (
+            <div className="space-y-3">
+              <Alert className="border-green-200 bg-green-50">
+                <AlertDescription className="text-green-800 font-medium">Cobrança enviada com sucesso!</AlertDescription>
+              </Alert>
+
+              {resultado.pixChave && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">Pix Copia e Cola:</p>
+                  <div className="rounded-md bg-muted px-3 py-2 font-mono text-xs break-all select-all">
+                    {resultado.pixChave}
+                  </div>
+                  {resultado.pixQrCode && (
+                    <img
+                      src={`data:image/png;base64,${resultado.pixQrCode}`}
+                      alt="QR Code Pix"
+                      className="h-36 w-36 mx-auto rounded"
+                    />
+                  )}
+                </div>
+              )}
+
+              {resultado.boletoUrl && (
+                <a
+                  href={resultado.boletoUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 text-sm text-primary hover:underline"
+                >
+                  <ExternalLink size={14} /> Abrir boleto bancário
+                </a>
+              )}
+
+              <div className="flex justify-end pt-2">
+                <Button onClick={onClose}>Fechar</Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const PAGE_SIZE = 15
 
 export default function CobrancasPage() {
@@ -175,6 +293,8 @@ export default function CobrancasPage() {
   const [filtroStatus, setFiltroStatus] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const [gatewayAtivo, setGatewayAtivo] = useState(false)
+  const [enviando, setEnviando] = useState<Cobranca | null>(null)
 
   const fetchData = useCallback(async (status: string, p: number) => {
     setLoading(true)
@@ -190,6 +310,7 @@ export default function CobrancasPage() {
   }, [])
 
   useEffect(() => {
+    gatewayService.buscar().then((r) => setGatewayAtivo(r.data?.data?.ativo ?? false)).catch(() => {})
     setPage(1)
     void fetchData(filtroStatus, 1)
   }, [filtroStatus, fetchData])
@@ -232,12 +353,14 @@ export default function CobrancasPage() {
         }
       />
 
-      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-        <p className="text-sm text-amber-700">
-          <strong>Cobranças:</strong> Estrutura preparada para integração com gateway de pagamento (Asaas, PagSeguro, etc.).
-          Atualmente funciona como controle manual.
-        </p>
-      </div>
+      {!gatewayAtivo && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 flex items-center justify-between gap-3">
+          <p className="text-sm text-amber-700">
+            <strong>Asaas não configurado.</strong> Configure a integração para emitir cobranças via Pix ou boleto automaticamente.
+          </p>
+          <a href="/configuracoes" className="text-xs font-medium text-amber-800 underline whitespace-nowrap">Configurar</a>
+        </div>
+      )}
 
       <div className="flex items-end gap-3">
         <div className="space-y-1.5">
@@ -288,6 +411,11 @@ export default function CobrancasPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        {gatewayAtivo && c.status === 'aguardando' && (
+                          <Button variant="outline" size="sm" onClick={() => setEnviando(c)} title="Enviar via Asaas">
+                            <Send size={13} /> Enviar
+                          </Button>
+                        )}
                         {c.status !== 'paga' && c.status !== 'cancelada' && (
                           <Button variant="outline" size="sm" onClick={() => handleRegistrarPagamento(c.id)}>
                             Pago
@@ -333,6 +461,13 @@ export default function CobrancasPage() {
         <ModalNovaCobranca
           onClose={() => setModalOpen(false)}
           onSaved={() => { setModalOpen(false); void fetchData(filtroStatus, page) }}
+        />
+      )}
+      {enviando && (
+        <ModalEnviarAsaas
+          cobranca={enviando}
+          onClose={() => setEnviando(null)}
+          onSent={() => { void fetchData(filtroStatus, page) }}
         />
       )}
     </div>

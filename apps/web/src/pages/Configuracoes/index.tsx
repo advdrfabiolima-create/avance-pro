@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { KeyRound, User, CheckCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { KeyRound, User, CheckCircle, Zap, Eye, EyeOff, Trash2 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Label } from '../../components/ui/Label'
@@ -9,6 +9,7 @@ import { Badge } from '../../components/ui/Badge'
 import PageHeader from '../../components/shared/PageHeader'
 import { useAuthStore } from '../../store/auth.store'
 import { usuariosService } from '../../services/usuarios.service'
+import { gatewayService, type ConfigGateway } from '../../services/gateway.service'
 
 interface SenhaForm {
   senhaAtual: string
@@ -21,6 +22,157 @@ const SENHA_VAZIA: SenhaForm = {
   novaSenha: '',
   confirmacaoSenha: '',
 }
+
+// ─── Card Asaas ───────────────────────────────────────────────────────────────
+
+function CardAsaas() {
+  const [config, setConfig] = useState<ConfigGateway | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [apiKey, setApiKey] = useState('')
+  const [ambiente, setAmbiente] = useState<'sandbox' | 'producao'>('sandbox')
+  const [mostrarKey, setMostrarKey] = useState(false)
+  const [salvando, setSalvando] = useState(false)
+  const [testando, setTestando] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+  const [sucesso, setSucesso] = useState<string | null>(null)
+
+  useEffect(() => {
+    gatewayService.buscar().then((res) => {
+      setConfig(res.data?.data ?? null)
+    }).catch(() => {}).finally(() => setLoading(false))
+  }, [])
+
+  async function handleTestar() {
+    if (!apiKey.trim()) { setErro('Informe a API Key antes de testar'); return }
+    setTestando(true); setErro(null); setSucesso(null)
+    try {
+      const res = await gatewayService.testar({ apiKey: apiKey.trim(), ambiente })
+      setSucesso(`Conectado: ${res.data?.data?.nome ?? 'conta válida'}`)
+    } catch (e: any) {
+      setErro(e?.response?.data?.error ?? 'Falha na conexão com o Asaas')
+    } finally { setTestando(false) }
+  }
+
+  async function handleSalvar() {
+    if (!apiKey.trim()) { setErro('Informe a API Key'); return }
+    setSalvando(true); setErro(null); setSucesso(null)
+    try {
+      const res = await gatewayService.salvar({ tipo: 'asaas', ambiente, apiKey: apiKey.trim() })
+      setConfig(res.data?.data ?? null)
+      setApiKey('')
+      setSucesso('Configuração salva com sucesso!')
+    } catch {
+      setErro('Erro ao salvar configuração')
+    } finally { setSalvando(false) }
+  }
+
+  async function handleDesativar() {
+    if (!confirm('Desativar a integração com o Asaas?')) return
+    try {
+      await gatewayService.desativar()
+      setConfig(null)
+      setSucesso('Integração desativada')
+    } catch { setErro('Erro ao desativar') }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <Zap className="h-4 w-4" />
+          Gateway de Pagamento — Asaas
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {loading ? (
+          <div className="h-8 rounded bg-muted animate-pulse" />
+        ) : config?.ativo ? (
+          <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-green-800">Asaas conectado</p>
+              <p className="text-xs text-green-700 mt-0.5">
+                Ambiente: <span className="font-semibold capitalize">{config.ambiente}</span>
+                {' · '}Chave: <span className="font-mono">{config.apiKeyMasked}</span>
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Badge variant="success">Ativo</Badge>
+              <Button variant="ghost" size="sm" onClick={handleDesativar} className="text-muted-foreground">
+                <Trash2 size={13} />
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Nenhum gateway configurado. Preencha abaixo para ativar o Asaas.</p>
+        )}
+
+        {sucesso && (
+          <Alert className="border-green-200 bg-green-50">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-800">{sucesso}</AlertDescription>
+          </Alert>
+        )}
+        {erro && <Alert variant="destructive"><AlertDescription>{erro}</AlertDescription></Alert>}
+
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>Ambiente</Label>
+            <div className="flex gap-2">
+              {(['sandbox', 'producao'] as const).map((a) => (
+                <button
+                  key={a}
+                  type="button"
+                  onClick={() => setAmbiente(a)}
+                  className={`flex-1 rounded-md border px-3 py-2 text-sm transition-colors ${
+                    ambiente === a
+                      ? 'border-primary bg-primary/10 font-medium text-primary'
+                      : 'border-border text-muted-foreground hover:bg-muted/30'
+                  }`}
+                >
+                  {a === 'sandbox' ? 'Sandbox (testes)' : 'Produção'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>API Key</Label>
+            <div className="relative">
+              <Input
+                type={mostrarKey ? 'text' : 'password'}
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder={config?.ativo ? 'Digite para substituir a chave atual' : 'Cole sua API Key do Asaas aqui'}
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setMostrarKey((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {mostrarKey ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Encontre sua API Key em: <span className="font-mono">Asaas → Configurações → Integrações → API Key</span>
+            </p>
+          </div>
+
+          <div className="flex gap-2 pt-1">
+            <Button type="button" variant="outline" onClick={handleTestar} disabled={testando || !apiKey.trim()}>
+              {testando ? 'Testando...' : 'Testar Conexão'}
+            </Button>
+            <Button type="button" onClick={handleSalvar} disabled={salvando || !apiKey.trim()}>
+              {salvando ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function ConfiguracoesPage() {
   const usuario = useAuthStore((s) => s.usuario)
@@ -81,7 +233,7 @@ export default function ConfiguracoesPage() {
     : '—'
 
   return (
-    <div className="space-y-6 p-4 sm:p-6 lg:p-8 max-w-2xl">
+    <div className="space-y-6 max-w-2xl">
       <PageHeader title="Configurações" />
 
       {/* Dados da conta */}
@@ -125,6 +277,9 @@ export default function ConfiguracoesPage() {
           </dl>
         </CardContent>
       </Card>
+
+      {/* Gateway de Pagamento — visível só para franqueado */}
+      {usuario?.perfil === 'franqueado' && <CardAsaas />}
 
       {/* Troca de senha */}
       <Card>
