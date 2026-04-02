@@ -270,7 +270,8 @@ function AddQuestaoForm({ exercicioId, ordem, onAdded, onCancel }: AddQuestaoFor
                 value={alt.texto}
                 onChange={(e) => {
                   const alts = [...form.alternativas]
-                  alts[idx] = { ...alts[idx], texto: e.target.value }
+                  const curr = alts[idx]
+                  if (curr) alts[idx] = { ...curr, texto: e.target.value }
                   setForm((f) => ({ ...f, alternativas: alts }))
                 }}
                 placeholder={`Alternativa ${alt.letra}`}

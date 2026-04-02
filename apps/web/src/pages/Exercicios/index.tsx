@@ -49,7 +49,7 @@ function ModalExercicio({ exercicio, onClose, onSaved }: ModalExercicioProps) {
 
   useEffect(() => {
     materiasService.listar().then((res) => {
-      const lista = res.data?.data?.items ?? res.data?.data ?? []
+      const lista = (res.data?.data as any) ?? []
       setMaterias(lista)
     }).catch(() => {})
   }, [])

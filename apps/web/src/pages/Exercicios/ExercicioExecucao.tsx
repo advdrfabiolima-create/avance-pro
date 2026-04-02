@@ -220,7 +220,8 @@ export default function ExercicioExecucaoPage() {
 
   const questoes = exercicio.questoes
   const questaoAtual = questoes[currentIdx]
-  const respostaAtual = respostas[questaoAtual?.id] ?? { questaoId: questaoAtual?.id }
+  const questaoAtualId = questaoAtual?.id ?? ''
+  const respostaAtual = respostas[questaoAtualId] ?? { questaoId: questaoAtualId }
 
   function handleNext() {
     if (currentIdx < questoes.length - 1) {
