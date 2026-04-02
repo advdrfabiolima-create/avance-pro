@@ -26,6 +26,7 @@ import {
   Landmark,
   ChevronDown,
   BookMarked,
+  HelpCircle,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useAuthStore } from '../../store/auth.store'
@@ -92,6 +93,7 @@ const navGroups: NavGroup[] = [
     items: [
       { to: '/usuarios', label: 'Usuários', icon: <UserCog size={15} />, onlyFranqueado: true },
       { to: '/configuracoes', label: 'Configurações', icon: <Settings size={15} /> },
+      { to: '/guia', label: 'Guia do Sistema', icon: <HelpCircle size={15} /> },
     ],
   },
 ]

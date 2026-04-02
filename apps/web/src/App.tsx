@@ -35,6 +35,8 @@ const NotasFiscaisPage = lazy(() => import('./pages/NotasFiscais/index'))
 const ImportacoesPage = lazy(() => import('./pages/Importacoes/index'))
 const ReajustesPage = lazy(() => import('./pages/Reajustes/index'))
 
+const GuiaPage = lazy(() => import('./pages/Guia/index'))
+
 // Novas páginas — Fase 4: Exercícios
 const ExerciciosPage = lazy(() => import('./pages/Exercicios/index'))
 const ExercicioDetalhePage = lazy(() => import('./pages/Exercicios/ExercicioDetalhe'))
@@ -101,6 +103,7 @@ export default function App() {
             {/* Admin */}
             <Route path="/usuarios" element={<UsuariosPage />} />
             <Route path="/configuracoes" element={<ConfiguracoesPage />} />
+            <Route path="/guia" element={<GuiaPage />} />
           </Route>
         </Route>
 
