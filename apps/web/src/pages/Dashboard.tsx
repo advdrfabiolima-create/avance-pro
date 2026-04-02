@@ -97,11 +97,9 @@ function StatCard({ label, value, icon, iconBg, iconColor, sub, to }: StatCardPr
       <CardContent className="pt-5 pb-4">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-              {label}
-            </p>
-            <p className="text-3xl font-bold tracking-tight">{value}</p>
-            {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
+            <p className="tp-label mb-2">{label}</p>
+            <p className="tp-stat-value">{value}</p>
+            {sub && <p className="tp-caption mt-1.5">{sub}</p>}
           </div>
           <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${iconBg}`}>
             <span className={iconColor}>{icon}</span>
@@ -141,8 +139,8 @@ function AlertasAlunos({ alunos }: { alunos: AlunoOperacional[] }) {
         {comAlerta.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
             <CheckCircle className="h-10 w-10 text-green-500/70" />
-            <p className="text-sm font-medium text-muted-foreground">Todos os alunos em dia!</p>
-            <p className="text-xs text-muted-foreground">Nenhum aluno precisa de atenção agora.</p>
+            <p className="text-[14px] font-semibold text-[#334155]">Todos os alunos em dia!</p>
+            <p className="tp-secondary">Nenhum aluno precisa de atenção agora.</p>
           </div>
         ) : (
           <ul className="space-y-2">
@@ -155,8 +153,8 @@ function AlertasAlunos({ alunos }: { alunos: AlunoOperacional[] }) {
                   <div className="flex items-center gap-3 min-w-0">
                     <StatusDot status={aluno.statusOperacional} />
                     <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{aluno.nome}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-[14px] font-medium text-[#1E293B] truncate">{aluno.nome}</p>
+                      <p className="tp-secondary">
                         {aluno.diasSemSessao !== null
                           ? aluno.diasSemSessao === 0
                             ? 'Sessão hoje'
@@ -206,7 +204,7 @@ function SessoesHojeCard({ sessoes }: { sessoes: SessaoHoje[] }) {
         {sessoes.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
             <Clock className="h-8 w-8 text-muted-foreground/50" />
-            <p className="text-sm text-muted-foreground">Nenhuma sessão hoje</p>
+            <p className="tp-secondary">Nenhuma sessão hoje</p>
           </div>
         ) : (
           <ul className="space-y-2">
@@ -216,8 +214,8 @@ function SessoesHojeCard({ sessoes }: { sessoes: SessaoHoje[] }) {
                 className="flex items-center justify-between rounded-lg border p-3 gap-3"
               >
                 <div className="min-w-0">
-                  <p className="text-sm font-medium capitalize">{s.turma.diaSemana}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-[14px] font-medium text-[#1E293B] capitalize">{s.turma.diaSemana}</p>
+                  <p className="tp-secondary">
                     {s.turma.horarioInicio} – {s.turma.horarioFim}
                   </p>
                 </div>
@@ -258,7 +256,7 @@ function EvolucaoRecenteCard({ alunos }: { alunos: AlunoOperacional[] }) {
               </p>
             </div>
             {melhorando.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-2">Nenhum aluno com melhora detectada.</p>
+              <p className="tp-secondary py-2">Nenhum aluno com melhora detectada.</p>
             ) : (
               <ul className="space-y-2">
                 {melhorando.map((a) => (
@@ -268,9 +266,9 @@ function EvolucaoRecenteCard({ alunos }: { alunos: AlunoOperacional[] }) {
                       className="flex items-center justify-between rounded-lg border border-green-100 bg-green-50/50 px-3 py-2 gap-3 hover:bg-green-50 transition-colors group"
                     >
                       <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{a.nome}</p>
+                        <p className="text-[14px] font-medium text-[#1E293B] truncate">{a.nome}</p>
                         {a.matriculaAtiva && (
-                          <p className="text-xs text-muted-foreground">
+                          <p className="tp-secondary">
                             {a.matriculaAtiva.materia.nome} · {a.matriculaAtiva.nivelAtual.codigo}
                           </p>
                         )}
@@ -295,7 +293,7 @@ function EvolucaoRecenteCard({ alunos }: { alunos: AlunoOperacional[] }) {
               </p>
             </div>
             {piorando.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-2">Nenhum aluno com piora detectada.</p>
+              <p className="tp-secondary py-2">Nenhum aluno com piora detectada.</p>
             ) : (
               <ul className="space-y-2">
                 {piorando.map((a) => (
@@ -305,9 +303,9 @@ function EvolucaoRecenteCard({ alunos }: { alunos: AlunoOperacional[] }) {
                       className="flex items-center justify-between rounded-lg border border-red-100 bg-red-50/50 px-3 py-2 gap-3 hover:bg-red-50 transition-colors group"
                     >
                       <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{a.nome}</p>
+                        <p className="text-[14px] font-medium text-[#1E293B] truncate">{a.nome}</p>
                         {a.matriculaAtiva && (
-                          <p className="text-xs text-muted-foreground">
+                          <p className="tp-secondary">
                             {a.matriculaAtiva.materia.nome} · {a.matriculaAtiva.nivelAtual.codigo}
                           </p>
                         )}
@@ -348,7 +346,7 @@ function InadimplenciaCard({ inadimplentes }: { inadimplentes: Inadimplente[] })
         {inadimplentes.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
             <CheckCircle className="h-8 w-8 text-green-500/70" />
-            <p className="text-sm text-muted-foreground">Nenhuma inadimplência</p>
+            <p className="tp-secondary">Nenhuma inadimplência</p>
           </div>
         ) : (
           <ul className="space-y-2">
@@ -357,8 +355,8 @@ function InadimplenciaCard({ inadimplentes }: { inadimplentes: Inadimplente[] })
                 key={item.alunoId}
                 className="flex items-center justify-between rounded-lg border p-3 gap-3"
               >
-                <p className="text-sm font-medium truncate">{item.nome}</p>
-                <span className="text-sm font-semibold text-destructive shrink-0">
+                <p className="text-[14px] font-medium text-[#1E293B] truncate">{item.nome}</p>
+                <span className="text-[14px] font-semibold text-destructive shrink-0">
                   {formatarMoeda(item.totalDevido)}
                 </span>
               </li>
@@ -416,10 +414,10 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="tp-page-title">
             {getSaudacao()}, {primeiroNome}!
           </h1>
-          <p className="text-sm text-muted-foreground capitalize mt-1">
+          <p className="tp-secondary capitalize mt-1">
             {formatarDataAtual()}
           </p>
         </div>

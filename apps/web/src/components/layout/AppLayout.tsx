@@ -150,7 +150,7 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
           <button
             onClick={onClose}
             className="ml-auto rounded-md p-1.5 transition-colors duration-150"
-            style={{ color: '#94A3B8' }}
+            style={{ color: '#64748B' }}
             aria-label="Fechar menu"
           >
             <X size={15} />
@@ -203,14 +203,14 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
                         onClick={onClose}
                         className={({ isActive }) =>
                           cn(
-                            'flex items-center gap-2.5 rounded-md px-2.5 py-[6px] text-[13px] font-medium transition-all duration-150',
+                            'flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[14px] transition-all duration-150',
                             isActive
-                              ? 'shadow-[inset_2px_0_0_0_#4F46E5]'
-                              : 'hover:bg-[#F1F5F9]'
+                              ? 'font-semibold shadow-[inset_2px_0_0_0_#4F46E5]'
+                              : 'font-medium hover:bg-[#F1F5F9]'
                           )
                         }
                         style={({ isActive }) => ({
-                          color: isActive ? '#4338CA' : '#475569',
+                          color: isActive ? '#4338CA' : '#334155',
                           background: isActive ? '#EEF2FF' : undefined,
                         })}
                       >
@@ -254,14 +254,14 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
           {/* Nome + perfil */}
           <div className="min-w-0 flex-1">
             <p
-              className="truncate text-[12.5px] font-semibold leading-tight"
+              className="truncate text-[13px] font-semibold leading-tight"
               style={{ color: '#1E293B' }}
             >
               {nome}
             </p>
             <p
-              className="truncate text-[11px] leading-tight capitalize mt-0.5"
-              style={{ color: '#94A3B8' }}
+              className="truncate text-[12px] leading-tight capitalize mt-0.5"
+              style={{ color: '#64748B' }}
             >
               {perfil}
             </p>
@@ -271,7 +271,7 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
           <button
             onClick={onLogout}
             className="shrink-0 rounded-md p-1.5 transition-all duration-150 hover:bg-red-50 hover:text-red-500 opacity-0 group-hover/user:opacity-100"
-            style={{ color: '#94A3B8' }}
+            style={{ color: '#64748B' }}
             aria-label="Sair"
             title="Sair"
           >
@@ -326,7 +326,7 @@ export default function AppLayout() {
         >
           <button
             className="rounded-lg p-1.5 transition-colors duration-150 md:hidden hover:bg-slate-100"
-            style={{ color: '#94A3B8' }}
+            style={{ color: '#64748B' }}
             onClick={() => setMobileOpen(true)}
             aria-label="Abrir menu"
           >
