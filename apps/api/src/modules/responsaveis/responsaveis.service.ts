@@ -22,7 +22,7 @@ export class ResponsavelService {
     }
 
     try {
-      const responsavel = await prisma.responsavel.create({ data })
+      const responsavel = await prisma.responsavel.create({ data: data as any })
       return responsavel
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
