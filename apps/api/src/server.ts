@@ -22,6 +22,7 @@ import { presencaRoutes } from './modules/presenca/presenca.routes'
 import { exerciciosRoutes } from './modules/exercicios/exercicios.routes'
 import { tentativasRoutes } from './modules/tentativas/tentativas.routes'
 import { configGatewayRoutes } from './modules/config-gateway/config-gateway.routes'
+import { configEmpresaRoutes } from './modules/config-empresa/config-empresa.routes'
 
 async function main() {
   const app = Fastify({
@@ -80,6 +81,9 @@ async function main() {
 
   // Gateway de pagamento
   await app.register(configGatewayRoutes, { prefix: '/api/config-gateway' })
+
+  // Configurações da empresa
+  await app.register(configEmpresaRoutes, { prefix: '/api/config-empresa' })
 
   // Health check
   app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }))
