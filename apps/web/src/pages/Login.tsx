@@ -304,7 +304,9 @@ export default function LoginPage() {
         {/* Crédito */}
         <div className="mt-8 flex items-center justify-center gap-1.5">
           <span className="text-[11px] text-gray-300">sistema desenvolvido por</span>
-          <img src="/axion_systems.png" alt="Axion Systems" className="h-6 w-auto opacity-70" />
+          <a href="https://axionsystem.com.br" target="_blank" rel="noopener noreferrer">
+            <img src="/axion_systems.png" alt="Axion Systems" className="h-6 w-auto opacity-70 hover:opacity-100 transition-opacity duration-200" />
+          </a>
         </div>
       </div>
     </div>
