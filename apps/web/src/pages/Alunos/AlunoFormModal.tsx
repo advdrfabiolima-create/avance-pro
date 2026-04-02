@@ -49,6 +49,7 @@ interface NovoResponsavelInlineProps {
 
 function NovoResponsavelInline({ onCriado, onCancelar }: NovoResponsavelInlineProps) {
   const [nome, setNome] = useState('')
+  const [cpf, setCpf] = useState('')
   const [email, setEmail] = useState('')
   const [telefone, setTelefone] = useState('')
   const [loading, setLoading] = useState(false)
@@ -64,6 +65,7 @@ function NovoResponsavelInline({ onCriado, onCancelar }: NovoResponsavelInlinePr
     try {
       const res = await responsaveisService.criar({
         nome: nome.trim(),
+        cpf: cpf.trim() || undefined,
         email: email.trim(),
         telefone: telefone.trim(),
       } as any)
@@ -93,12 +95,16 @@ function NovoResponsavelInline({ onCriado, onCancelar }: NovoResponsavelInlinePr
           <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome completo" className="h-8 text-sm" />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">E-mail *</Label>
-          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@exemplo.com" className="h-8 text-sm" />
+          <Label className="text-xs">CPF</Label>
+          <Input value={cpf} onChange={(e) => setCpf(e.target.value)} placeholder="000.000.000-00" className="h-8 text-sm" />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Telefone *</Label>
           <Input value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(11) 99999-9999" className="h-8 text-sm" />
+        </div>
+        <div className="sm:col-span-2 space-y-1">
+          <Label className="text-xs">E-mail *</Label>
+          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@exemplo.com" className="h-8 text-sm" />
         </div>
       </div>
 
