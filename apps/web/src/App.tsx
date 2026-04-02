@@ -35,6 +35,12 @@ const NotasFiscaisPage = lazy(() => import('./pages/NotasFiscais/index'))
 const ImportacoesPage = lazy(() => import('./pages/Importacoes/index'))
 const ReajustesPage = lazy(() => import('./pages/Reajustes/index'))
 
+// Novas páginas — Fase 4: Exercícios
+const ExerciciosPage = lazy(() => import('./pages/Exercicios/index'))
+const ExercicioDetalhePage = lazy(() => import('./pages/Exercicios/ExercicioDetalhe'))
+const ExercicioExecucaoPage = lazy(() => import('./pages/Exercicios/ExercicioExecucao'))
+const TentativaResultadoPage = lazy(() => import('./pages/Exercicios/TentativaResultado'))
+
 export default function App() {
   return (
     <Suspense
@@ -85,6 +91,12 @@ export default function App() {
             <Route path="/notas-fiscais" element={<NotasFiscaisPage />} />
             <Route path="/importacoes" element={<ImportacoesPage />} />
             <Route path="/reajustes" element={<ReajustesPage />} />
+
+            {/* Exercícios */}
+            <Route path="/exercicios" element={<ExerciciosPage />} />
+            <Route path="/exercicios/:id" element={<ExercicioDetalhePage />} />
+            <Route path="/exercicios/:exercicioId/executar/:alunoId" element={<ExercicioExecucaoPage />} />
+            <Route path="/tentativas/:id" element={<TentativaResultadoPage />} />
 
             {/* Admin */}
             <Route path="/usuarios" element={<UsuariosPage />} />

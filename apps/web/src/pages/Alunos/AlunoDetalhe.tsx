@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft, Pencil, BookOpen, Users, GraduationCap,
-  Clock, Target, TrendingUp, AlertTriangle, Calendar,
+  Clock, Target, TrendingUp, AlertTriangle, Calendar, BookMarked, Play, AlertCircle,
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Ca
 import { StatusBadge } from '../../components/shared/StatusBadge'
 import type { StatusOperacional } from '../../components/shared/StatusBadge'
 import { alunosService } from '../../services/alunos.service'
+import { tentativasService, type ErroRecorrente } from '../../services/tentativas.service'
+import { exerciciosService, type Exercicio } from '../../services/exercicios.service'
 import AlunoFormModal from './AlunoFormModal'
 import MatriculaModal from './MatriculaModal'
 import AlunoEvolucao from './AlunoEvolucao'
@@ -285,6 +287,147 @@ function HistoricoSessoes({ sessoes }: { sessoes: SessaoHistorico[] }) {
   )
 }
 
+// ─── Exercícios do Aluno ──────────────────────────────────────────────────────
+
+function ExerciciosAluno({ alunoId }: { alunoId: string }) {
+  const navigate = useNavigate()
+  const [tentativas, setTentativas] = useState<any[]>([])
+  const [erros, setErros] = useState<ErroRecorrente[]>([])
+  const [exercicios, setExercicios] = useState<Exercicio[]>([])
+  const [loading, setLoading] = useState(true)
+  const [iniciarId, setIniciarId] = useState<string | null>(null)
+  const [iniciarLoading, setIniciarLoading] = useState(false)
+
+  useEffect(() => {
+    async function carregar() {
+      try {
+        const [tentRes, erroRes, exRes] = await Promise.all([
+          tentativasService.listar({ alunoId, pageSize: 5 }),
+          tentativasService.errosRecorrentes(alunoId),
+          exerciciosService.listar({ ativo: true, pageSize: 20 }),
+        ])
+        setTentativas(tentRes.data?.data?.items ?? [])
+        setErros(erroRes.data?.data ?? [])
+        setExercicios(exRes.data?.data?.items ?? [])
+      } catch {
+        /* silencioso */
+      } finally {
+        setLoading(false)
+      }
+    }
+    carregar()
+  }, [alunoId])
+
+  async function handleIniciarExercicio() {
+    if (!iniciarId) return
+    setIniciarLoading(true)
+    navigate(`/exercicios/${iniciarId}/executar/${alunoId}`)
+  }
+
+  const pct = (t: any) => {
+    const p = parseFloat(t.pontuacao ?? '0')
+    const total = parseFloat(t.totalPontos ?? '0')
+    return total > 0 ? Math.round((p / total) * 100) : null
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Iniciar novo exercício */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <BookMarked size={16} />
+            Exercícios e Correção
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-2">
+            <select
+              value={iniciarId ?? ''}
+              onChange={(e) => setIniciarId(e.target.value || null)}
+              className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="">Selecionar exercício...</option>
+              {exercicios.map((ex) => (
+                <option key={ex.id} value={ex.id}>
+                  {ex.titulo}{ex.materia ? ` (${ex.materia.nome})` : ''}
+                </option>
+              ))}
+            </select>
+            <Button
+              size="sm"
+              disabled={!iniciarId || iniciarLoading}
+              onClick={handleIniciarExercicio}
+            >
+              <Play size={13} />
+              Iniciar
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Histórico de tentativas */}
+      {!loading && tentativas.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm text-muted-foreground font-medium">Últimas tentativas</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {tentativas.map((t) => {
+              const p = pct(t)
+              return (
+                <div
+                  key={t.id}
+                  className="flex items-center gap-3 rounded-lg border border-border/40 px-3 py-2 cursor-pointer hover:bg-muted/20 transition-colors"
+                  onClick={() => navigate(`/tentativas/${t.id}`)}
+                >
+                  <div className={`h-8 w-8 shrink-0 flex items-center justify-center rounded-full text-xs font-bold ${
+                    p === null ? 'bg-muted text-muted-foreground' :
+                    p >= 70 ? 'bg-green-100 text-green-700' :
+                    p >= 50 ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-red-100 text-red-600'
+                  }`}>
+                    {p !== null ? `${p}%` : '—'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{t.exercicio?.titulo}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(t.iniciadaEm).toLocaleDateString('pt-BR')}
+                      {t.exercicio?.materia && ` • ${t.exercicio.materia.nome}`}
+                    </p>
+                  </div>
+                </div>
+              )
+            })}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Erros recorrentes */}
+      {!loading && erros.length > 0 && (
+        <Card className="border-orange-200">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium text-orange-700">
+              <AlertCircle size={15} />
+              Erros Recorrentes ({erros.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {erros.slice(0, 4).map((e) => (
+              <div key={e.id} className="rounded-md bg-orange-50 px-3 py-2">
+                <p className="text-xs font-medium text-orange-800 truncate">{e.questao?.enunciado}</p>
+                <p className="text-xs text-orange-600 mt-0.5">
+                  {e.questao?.exercicio?.titulo} • {e.contagem}x errado
+                </p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
+}
+
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 function SkeletonDetalhe() {
@@ -505,6 +648,8 @@ export default function AlunoDetalhePage() {
 
         {/* Coluna lateral */}
         <div className="space-y-6">
+          {/* Exercícios */}
+          <ExerciciosAluno alunoId={aluno.id} />
           {/* Responsáveis */}
           <Card>
             <CardHeader>

@@ -87,6 +87,12 @@ enum TipoRecorrencia {
   anual
 }
 
+enum TipoQuestao {
+  objetiva
+  numerica
+  discursiva
+}
+
 // ─── Usuários ────────────────────────────────────────────────────────────────
 
 model Usuario {
@@ -117,14 +123,17 @@ model Aluno {
   ativo           Boolean   @default(true)
   criadoEm       DateTime  @default(now()) @map("criado_em")
 
-  responsaveis  ResponsavelAluno[]
-  matriculas    Matricula[]
-  turmas        TurmaAluno[]
-  sessoesAluno  SessaoAluno[]
-  pagamentos    Pagamento[]
-  reunioes      Reuniao[]
-  cobrancas     Cobranca[]
-  notasFiscais  NotaFiscal[]
+  responsaveis     ResponsavelAluno[]
+  matriculas       Matricula[]
+  turmas           TurmaAluno[]
+  sessoesAluno     SessaoAluno[]
+  pagamentos       Pagamento[]
+  reunioes         Reuniao[]
+  cobrancas        Cobranca[]
+  notasFiscais     NotaFiscal[]
+  tentativas       Tentativa[]
+  errosRecorrentes ErroRecorrente[]
+  sugestoes        SugestaoReforco[]
 
   @@map("alunos")
 }
@@ -171,6 +180,7 @@ model Materia {
 
   niveis     Nivel[]
   matriculas Matricula[]
+  exercicios Exercicio[]
 
   @@map("materias")
 }
@@ -187,6 +197,7 @@ model Nivel {
   sessoesAluno        SessaoAluno[]
   progressoesAnteriores ProgressaoNivel[] @relation("NivelAnterior")
   progressoesNovas    ProgressaoNivel[] @relation("NivelNovo")
+  exercicios          Exercicio[]
 
   @@unique([materiaId, codigo])
   @@map("niveis")
@@ -420,4 +431,130 @@ model NotaFiscal {
   responsavel Responsavel? @relation(fields: [responsavelId], references: [id])
 
   @@map("notas_fiscais")
+}
+
+// ─── Exercícios e Correção Inteligente ───────────────────────────────────────
+
+model Exercicio {
+  id          String   @id @default(uuid())
+  titulo      String   @db.VarChar(200)
+  descricao   String?  @db.Text
+  materiaId   String?  @map("materia_id")
+  nivelId     String?  @map("nivel_id")
+  ativo       Boolean  @default(true)
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  materia    Materia?    @relation(fields: [materiaId], references: [id])
+  nivel      Nivel?      @relation(fields: [nivelId], references: [id])
+  questoes   Questao[]
+  tentativas Tentativa[]
+
+  @@map("exercicios")
+}
+
+model Questao {
+  id          String      @id @default(uuid())
+  exercicioId String      @map("exercicio_id")
+  enunciado   String      @db.Text
+  tipo        TipoQuestao
+  ordem       Int         @default(0)
+  pontos      Decimal     @default(1) @db.Decimal(5, 2)
+
+  exercicio         Exercicio         @relation(fields: [exercicioId], references: [id], onDelete: Cascade)
+  alternativas      Alternativa[]
+  respostaCorreta   RespostaCorreta?
+  respostasAluno    RespostaAluno[]
+  errosRecorrentes  ErroRecorrente[]
+
+  @@map("questoes")
+}
+
+model Alternativa {
+  id        String  @id @default(uuid())
+  questaoId String  @map("questao_id")
+  letra     String  @db.VarChar(1)
+  texto     String  @db.Text
+
+  questao          Questao          @relation(fields: [questaoId], references: [id], onDelete: Cascade)
+  respostasAluno   RespostaAluno[]
+
+  @@map("alternativas")
+}
+
+model RespostaCorreta {
+  id            String   @id @default(uuid())
+  questaoId     String   @unique @map("questao_id")
+  alternativaId String?  @map("alternativa_id")
+  valorNumerico Decimal? @map("valor_numerico") @db.Decimal(15, 4)
+  tolerancia    Decimal? @db.Decimal(10, 4)
+  textoEsperado String?  @map("texto_esperado") @db.Text
+
+  questao Questao @relation(fields: [questaoId], references: [id], onDelete: Cascade)
+
+  @@map("respostas_corretas")
+}
+
+model Tentativa {
+  id           String    @id @default(uuid())
+  alunoId      String    @map("aluno_id")
+  exercicioId  String    @map("exercicio_id")
+  iniciadaEm   DateTime  @default(now()) @map("iniciada_em")
+  finalizadaEm DateTime? @map("finalizada_em")
+  pontuacao    Decimal?  @db.Decimal(5, 2)
+  totalPontos  Decimal?  @map("total_pontos") @db.Decimal(5, 2)
+  corrigida    Boolean   @default(false)
+
+  aluno          Aluno           @relation(fields: [alunoId], references: [id])
+  exercicio      Exercicio       @relation(fields: [exercicioId], references: [id])
+  respostasAluno RespostaAluno[]
+
+  @@map("tentativas")
+}
+
+model RespostaAluno {
+  id            String   @id @default(uuid())
+  tentativaId   String   @map("tentativa_id")
+  questaoId     String   @map("questao_id")
+  alternativaId String?  @map("alternativa_id")
+  valorNumerico Decimal? @map("valor_numerico") @db.Decimal(15, 4)
+  textoResposta String?  @map("texto_resposta") @db.Text
+  correta       Boolean?
+  pontosObtidos Decimal? @map("pontos_obtidos") @db.Decimal(5, 2)
+
+  tentativa   Tentativa    @relation(fields: [tentativaId], references: [id], onDelete: Cascade)
+  questao     Questao      @relation(fields: [questaoId], references: [id])
+  alternativa Alternativa? @relation(fields: [alternativaId], references: [id])
+
+  @@unique([tentativaId, questaoId])
+  @@map("respostas_aluno")
+}
+
+model ErroRecorrente {
+  id               String   @id @default(uuid())
+  alunoId          String   @map("aluno_id")
+  questaoId        String   @map("questao_id")
+  contagem         Int      @default(1)
+  ultimaOcorrencia DateTime @default(now()) @map("ultima_ocorrencia")
+  resolvido        Boolean  @default(false)
+
+  aluno     Aluno            @relation(fields: [alunoId], references: [id])
+  questao   Questao          @relation(fields: [questaoId], references: [id])
+  sugestoes SugestaoReforco[]
+
+  @@unique([alunoId, questaoId])
+  @@map("erros_recorrentes")
+}
+
+model SugestaoReforco {
+  id               String   @id @default(uuid())
+  alunoId          String   @map("aluno_id")
+  erroRecorrenteId String   @map("erro_recorrente_id")
+  texto            String   @db.Text
+  criadoEm        DateTime @default(now()) @map("criado_em")
+  visualizada      Boolean  @default(false)
+
+  aluno          Aluno          @relation(fields: [alunoId], references: [id])
+  erroRecorrente ErroRecorrente @relation(fields: [erroRecorrenteId], references: [id])
+
+  @@map("sugestoes_reforco")
 }

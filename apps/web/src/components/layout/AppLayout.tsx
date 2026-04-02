@@ -25,6 +25,7 @@ import {
   Upload,
   Landmark,
   ChevronDown,
+  BookMarked,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useAuthStore } from '../../store/auth.store'
@@ -59,6 +60,7 @@ const navGroups: NavGroup[] = [
       { to: '/quadro-horarios', label: 'Quadro de Horários', icon: <Grid3X3 size={15} /> },
       { to: '/presenca', label: 'Lista de Presença', icon: <CheckSquare size={15} /> },
       { to: '/reunioes', label: 'Reuniões', icon: <MessageSquare size={15} /> },
+      { to: '/exercicios', label: 'Exercícios', icon: <BookMarked size={15} /> },
     ],
   },
   {

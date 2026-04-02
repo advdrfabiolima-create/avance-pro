@@ -19,6 +19,8 @@ import { recorrenciasRoutes } from './modules/recorrencias/recorrencias.routes'
 import { relatoriosRoutes } from './modules/relatorios/relatorios.routes'
 import { notasFiscaisRoutes } from './modules/notas-fiscais/notas-fiscais.routes'
 import { presencaRoutes } from './modules/presenca/presenca.routes'
+import { exerciciosRoutes } from './modules/exercicios/exercicios.routes'
+import { tentativasRoutes } from './modules/tentativas/tentativas.routes'
 
 async function main() {
   const app = Fastify({
@@ -70,6 +72,10 @@ async function main() {
 
   // Novas rotas — Fase 3
   await app.register(notasFiscaisRoutes, { prefix: '/api/notas-fiscais' })
+
+  // Novas rotas — Fase 4: Exercícios
+  await app.register(exerciciosRoutes, { prefix: '/api/exercicios' })
+  await app.register(tentativasRoutes, { prefix: '/api/tentativas' })
 
   // Health check
   app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }))
