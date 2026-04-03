@@ -173,13 +173,26 @@ export class ResponsavelService {
   async excluir(id: string) {
     const responsavel = await prisma.responsavel.findUnique({
       where: { id },
-      include: { _count: { select: { alunos: true } } },
+      include: { alunos: { select: { alunoId: true } } },
     })
     if (!responsavel) throw erroNegocio(404, 'Responsável não encontrado')
-    if (responsavel._count.alunos > 0) {
-      throw erroNegocio(409, 'Não é possível excluir: responsável possui alunos vinculados. Desvincule os alunos antes de excluir.')
-    }
-    await prisma.responsavel.delete({ where: { id } })
+
+    const alunoIds = responsavel.alunos.map((v) => v.alunoId)
+
+    await prisma.$transaction(async (tx) => {
+      // Desativar os alunos vinculados
+      if (alunoIds.length > 0) {
+        await tx.aluno.updateMany({
+          where: { id: { in: alunoIds } },
+          data: { ativo: false },
+        })
+        // Remover todos os vínculos desses alunos (podem ter outros responsáveis)
+        await tx.responsavelAluno.deleteMany({
+          where: { alunoId: { in: alunoIds } },
+        })
+      }
+      await tx.responsavel.delete({ where: { id } })
+    })
   }
 
   async desvincularAluno(responsavelId: string, alunoId: string) {

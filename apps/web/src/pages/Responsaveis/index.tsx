@@ -116,11 +116,10 @@ export default function ResponsaveisPage() {
   }
 
   const handleExcluir = async (r: Responsavel) => {
-    if (r.alunos.length > 0) {
-      alert(`Não é possível excluir: "${r.nome}" possui ${r.alunos.length} aluno(s) vinculado(s). Desvincule os alunos primeiro.`)
-      return
-    }
-    if (!confirm(`Excluir o responsável "${r.nome}"? Esta ação não pode ser desfeita.`)) return
+    const msg = r.alunos.length > 0
+      ? `Excluir "${r.nome}"? Os ${r.alunos.length} aluno(s) vinculado(s) também serão desativados. Esta ação não pode ser desfeita.`
+      : `Excluir o responsável "${r.nome}"? Esta ação não pode ser desfeita.`
+    if (!confirm(msg)) return
     try {
       await responsaveisService.excluir(r.id)
       void fetchData(busca, page)
