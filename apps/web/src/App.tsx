@@ -42,6 +42,8 @@ const ExerciciosPage = lazy(() => import('./pages/Exercicios/index'))
 const ExercicioDetalhePage = lazy(() => import('./pages/Exercicios/ExercicioDetalhe'))
 const ExercicioExecucaoPage = lazy(() => import('./pages/Exercicios/ExercicioExecucao'))
 const TentativaResultadoPage = lazy(() => import('./pages/Exercicios/TentativaResultado'))
+const OcrUploadPage = lazy(() => import('./pages/Exercicios/OcrUpload'))
+const OcrRevisaoPage = lazy(() => import('./pages/Exercicios/OcrRevisao'))
 
 export default function App() {
   return (
@@ -99,6 +101,10 @@ export default function App() {
             <Route path="/exercicios/:id" element={<ExercicioDetalhePage />} />
             <Route path="/exercicios/:exercicioId/executar/:alunoId" element={<ExercicioExecucaoPage />} />
             <Route path="/tentativas/:id" element={<TentativaResultadoPage />} />
+
+            {/* OCR — correção por foto */}
+            <Route path="/ocr/upload" element={<OcrUploadPage />} />
+            <Route path="/ocr/:id/revisar" element={<OcrRevisaoPage />} />
 
             {/* Admin */}
             <Route path="/usuarios" element={<UsuariosPage />} />

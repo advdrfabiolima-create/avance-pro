@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BookMarked, Plus, X, Pencil, Trash2, Eye } from 'lucide-react'
+import { BookMarked, Plus, X, Pencil, Trash2, Eye, ScanLine } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Label } from '../../components/ui/Label'
@@ -208,10 +208,15 @@ export default function ExerciciosPage() {
         title="Exercícios"
         subtitle={`${total} exercício${total !== 1 ? 's' : ''} cadastrado${total !== 1 ? 's' : ''}`}
         actions={
-          <Button onClick={() => { setEditando(null); setModalOpen(true) }}>
-            <Plus size={15} />
-            Novo Exercício
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate('/ocr/upload')}>
+              <ScanLine size={14} className="mr-1.5" /> Corrigir por Foto
+            </Button>
+            <Button onClick={() => { setEditando(null); setModalOpen(true) }}>
+              <Plus size={15} />
+              Novo Exercício
+            </Button>
+          </div>
         }
       />
 

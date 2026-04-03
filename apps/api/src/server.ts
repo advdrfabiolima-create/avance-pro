@@ -23,6 +23,7 @@ import { exerciciosRoutes } from './modules/exercicios/exercicios.routes'
 import { tentativasRoutes } from './modules/tentativas/tentativas.routes'
 import { configGatewayRoutes } from './modules/config-gateway/config-gateway.routes'
 import { configEmpresaRoutes } from './modules/config-empresa/config-empresa.routes'
+import { ocrRoutes } from './modules/ocr/ocr.routes'
 
 async function main() {
   const app = Fastify({
@@ -84,6 +85,9 @@ async function main() {
 
   // Configurações da empresa
   await app.register(configEmpresaRoutes, { prefix: '/api/config-empresa' })
+
+  // OCR — correção por fotografia
+  await app.register(ocrRoutes, { prefix: '/api/ocr' })
 
   // Health check
   app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }))

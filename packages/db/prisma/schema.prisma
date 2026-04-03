@@ -93,6 +93,14 @@ enum TipoQuestao {
   discursiva
 }
 
+enum StatusOcr {
+  pendente
+  processando
+  revisao
+  confirmado
+  erro
+}
+
 // ─── Usuários ────────────────────────────────────────────────────────────────
 
 model Usuario {
@@ -134,6 +142,7 @@ model Aluno {
   tentativas       Tentativa[]
   errosRecorrentes ErroRecorrente[]
   sugestoes        SugestaoReforco[]
+  tentativasOcr    TentativaOcr[]
 
   @@map("alunos")
 }
@@ -480,10 +489,11 @@ model Exercicio {
   ativo       Boolean  @default(true)
   criadoEm   DateTime @default(now()) @map("criado_em")
 
-  materia    Materia?    @relation(fields: [materiaId], references: [id])
-  nivel      Nivel?      @relation(fields: [nivelId], references: [id])
-  questoes   Questao[]
-  tentativas Tentativa[]
+  materia       Materia?       @relation(fields: [materiaId], references: [id])
+  nivel         Nivel?         @relation(fields: [nivelId], references: [id])
+  questoes      Questao[]
+  tentativas    Tentativa[]
+  tentativasOcr TentativaOcr[]
 
   @@map("exercicios")
 }
@@ -496,11 +506,12 @@ model Questao {
   ordem       Int         @default(0)
   pontos      Decimal     @default(1) @db.Decimal(5, 2)
 
-  exercicio         Exercicio         @relation(fields: [exercicioId], references: [id], onDelete: Cascade)
-  alternativas      Alternativa[]
-  respostaCorreta   RespostaCorreta?
-  respostasAluno    RespostaAluno[]
-  errosRecorrentes  ErroRecorrente[]
+  exercicio               Exercicio               @relation(fields: [exercicioId], references: [id], onDelete: Cascade)
+  alternativas            Alternativa[]
+  respostaCorreta         RespostaCorreta?
+  respostasAluno          RespostaAluno[]
+  errosRecorrentes        ErroRecorrente[]
+  respostasOcrDetectadas  RespostaOcrDetectada[]
 
   @@map("questoes")
 }
@@ -543,6 +554,7 @@ model Tentativa {
   aluno          Aluno           @relation(fields: [alunoId], references: [id])
   exercicio      Exercicio       @relation(fields: [exercicioId], references: [id])
   respostasAluno RespostaAluno[]
+  tentativaOcr   TentativaOcr?
 
   @@map("tentativas")
 }
@@ -593,4 +605,43 @@ model SugestaoReforco {
   erroRecorrente ErroRecorrente @relation(fields: [erroRecorrenteId], references: [id])
 
   @@map("sugestoes_reforco")
+}
+
+// ─── OCR — Correção por Fotografia ───────────────────────────────────────────
+
+model TentativaOcr {
+  id            String    @id @default(uuid())
+  alunoId       String    @map("aluno_id")
+  exercicioId   String    @map("exercicio_id")
+  imagemBase64  String    @db.Text @map("imagem_base64")
+  textoOcr      String?   @db.Text @map("texto_ocr")
+  status        StatusOcr @default(pendente)
+  erroMensagem  String?   @db.Text @map("erro_mensagem")
+  tentativaId   String?   @unique @map("tentativa_id")
+  criadoEm     DateTime  @default(now()) @map("criado_em")
+  atualizadoEm DateTime  @updatedAt @map("atualizado_em")
+
+  aluno               Aluno                  @relation(fields: [alunoId], references: [id])
+  exercicio           Exercicio              @relation(fields: [exercicioId], references: [id])
+  tentativa           Tentativa?             @relation(fields: [tentativaId], references: [id])
+  respostasDetectadas RespostaOcrDetectada[]
+
+  @@map("tentativas_ocr")
+}
+
+model RespostaOcrDetectada {
+  id             String   @id @default(uuid())
+  tentativaOcrId String   @map("tentativa_ocr_id")
+  questaoOrdem   Int      @map("questao_ordem")
+  questaoId      String?  @map("questao_id")
+  tipoDetectado  String   @map("tipo_detectado") @db.VarChar(20)
+  letraDetectada String?  @map("letra_detectada") @db.VarChar(1)
+  valorDetectado Decimal? @map("valor_detectado") @db.Decimal(15, 4)
+  confianca      Decimal? @db.Decimal(4, 3)
+  confirmada     Boolean  @default(false)
+
+  tentativaOcr TentativaOcr @relation(fields: [tentativaOcrId], references: [id], onDelete: Cascade)
+  questao      Questao?      @relation(fields: [questaoId], references: [id])
+
+  @@map("respostas_ocr_detectadas")
 }
