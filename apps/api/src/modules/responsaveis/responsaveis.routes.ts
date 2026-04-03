@@ -106,6 +106,20 @@ export async function responsaveisRoutes(app: FastifyInstance): Promise<void> {
     }
   })
 
+  // DELETE /:id — apenas franqueado
+  app.delete('/:id', { preHandler: apenasAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    try {
+      await responsavelService.excluir(id)
+      return reply.status(200).send({ success: true, data: { message: 'Responsável excluído com sucesso' } })
+    } catch (err) {
+      if (isErroNegocio(err)) {
+        return reply.status(err.statusCode).send({ success: false, error: err.message })
+      }
+      return reply.status(500).send({ success: false, error: 'Erro ao excluir responsável' })
+    }
+  })
+
   // POST /:id/alunos — autenticado
   app.post('/:id/alunos', { preHandler: autenticar }, async (request, reply) => {
     const { id: responsavelId } = request.params as { id: string }

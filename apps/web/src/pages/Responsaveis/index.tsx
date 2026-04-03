@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Eye, Pencil, Search } from 'lucide-react'
+import { Plus, Eye, Pencil, Search, Trash2 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Badge } from '../../components/ui/Badge'
@@ -115,6 +115,20 @@ export default function ResponsaveisPage() {
     void fetchData(busca, page)
   }
 
+  const handleExcluir = async (r: Responsavel) => {
+    if (r.alunos.length > 0) {
+      alert(`Não é possível excluir: "${r.nome}" possui ${r.alunos.length} aluno(s) vinculado(s). Desvincule os alunos primeiro.`)
+      return
+    }
+    if (!confirm(`Excluir o responsável "${r.nome}"? Esta ação não pode ser desfeita.`)) return
+    try {
+      await responsaveisService.excluir(r.id)
+      void fetchData(busca, page)
+    } catch (err: any) {
+      alert(err?.response?.data?.error ?? 'Erro ao excluir responsável.')
+    }
+  }
+
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
@@ -197,6 +211,15 @@ export default function ResponsaveisPage() {
                             onClick={() => setEditingId(r.id)}
                           >
                             <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Excluir"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => handleExcluir(r)}
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </td>

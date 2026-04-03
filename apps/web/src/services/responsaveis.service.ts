@@ -33,6 +33,9 @@ export const responsaveisService = {
   atualizar: (id: string, data: ResponsavelUpdate) =>
     api.put<Responsavel>(`/responsaveis/${id}`, data),
 
+  excluir: (id: string) =>
+    api.delete(`/responsaveis/${id}`),
+
   vincularAluno: (
     responsavelId: string,
     body: { alunoId: string; parentesco: string; principal: boolean },

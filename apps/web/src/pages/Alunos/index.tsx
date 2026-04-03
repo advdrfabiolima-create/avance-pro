@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Plus, Eye, Pencil, Search, GraduationCap, TrendingUp, TrendingDown, Minus, X } from 'lucide-react'
+import { Plus, Eye, Pencil, Search, GraduationCap, TrendingUp, TrendingDown, Minus, X, Trash2 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import PageHeader from '../../components/shared/PageHeader'
@@ -130,6 +130,16 @@ export default function AlunosPage() {
   const handleSaved = () => {
     setModalId(undefined)
     void fetchData(busca, page, apenasAtivos)
+  }
+
+  const handleDesativar = async (aluno: AlunoLista) => {
+    if (!confirm(`Desativar o aluno "${aluno.nome}"? Ele ficará oculto na listagem padrão, mas seus dados serão preservados.`)) return
+    try {
+      await alunosService.desativar(aluno.id)
+      void fetchData(busca, page, apenasAtivos)
+    } catch (err: any) {
+      alert(err?.response?.data?.error ?? 'Erro ao desativar aluno.')
+    }
   }
 
   const totalPages = result?.totalPaginas ?? 1
@@ -281,6 +291,17 @@ export default function AlunosPage() {
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
+                          {aluno.ativo && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Desativar aluno"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => handleDesativar(aluno)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>

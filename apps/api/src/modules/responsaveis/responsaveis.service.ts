@@ -170,6 +170,18 @@ export class ResponsavelService {
     })
   }
 
+  async excluir(id: string) {
+    const responsavel = await prisma.responsavel.findUnique({
+      where: { id },
+      include: { _count: { select: { alunos: true } } },
+    })
+    if (!responsavel) throw erroNegocio(404, 'Responsável não encontrado')
+    if (responsavel._count.alunos > 0) {
+      throw erroNegocio(409, 'Não é possível excluir: responsável possui alunos vinculados. Desvincule os alunos antes de excluir.')
+    }
+    await prisma.responsavel.delete({ where: { id } })
+  }
+
   async desvincularAluno(responsavelId: string, alunoId: string) {
     const vinculo = await prisma.responsavelAluno.findUnique({
       where: { alunoId_responsavelId: { alunoId, responsavelId } },
