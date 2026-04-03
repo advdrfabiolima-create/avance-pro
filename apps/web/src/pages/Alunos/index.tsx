@@ -91,7 +91,7 @@ export default function AlunosPage() {
         const res = await alunosService.listar({
           busca: buscaVal || undefined,
           materiaId: materiaIdFiltro,
-          ativo,
+          ativo: ativo ? true : undefined,
           page: pageVal,
           pageSize: PAGE_SIZE,
         })
