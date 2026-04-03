@@ -133,10 +133,11 @@ export default function AlunosPage() {
   }
 
   const handleDesativar = async (aluno: AlunoLista) => {
-    if (!confirm(`Desativar o aluno "${aluno.nome}"? Ele ficará oculto na listagem padrão, mas seus dados serão preservados.`)) return
+    if (!confirm(`Desativar o aluno "${aluno.nome}"? Seus dados serão preservados e ele poderá ser reativado.`)) return
     try {
       await alunosService.desativar(aluno.id)
-      void fetchData(busca, page, apenasAtivos)
+      // Exibe inativos automaticamente para o botão de reativar ficar visível
+      setApenasAtivos(false)
     } catch (err: any) {
       alert(err?.response?.data?.error ?? 'Erro ao desativar aluno.')
     }
