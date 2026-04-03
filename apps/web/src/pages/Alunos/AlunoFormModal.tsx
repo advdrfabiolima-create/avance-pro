@@ -29,6 +29,9 @@ interface FormFields {
   estado: string
 }
 
+// Campo separado pois é boolean, não string
+type ExtraFields = { cadastradoKsis: boolean }
+
 const EMPTY: FormFields = {
   nome: '',
   dataNascimento: '',
@@ -193,6 +196,7 @@ interface VinculoExistente {
 export default function AlunoFormModal({ id, onClose, onSaved }: Props) {
   const isEdit = id !== null && id !== ''
   const [fields, setFields] = useState<FormFields>(EMPTY)
+  const [cadastradoKsis, setCadastradoKsis] = useState(false)
   const [foto, setFoto] = useState<string | null>(null)
   const [fotoAlterada, setFotoAlterada] = useState(false)
   // Criação: vínculos novos
@@ -238,6 +242,7 @@ export default function AlunoFormModal({ id, onClose, onSaved }: Props) {
             cidade: aluno.cidade ?? '',
             estado: aluno.estado ?? '',
           })
+          setCadastradoKsis(aluno.cadastradoKsis ?? false)
           setFoto(aluno.foto ?? null)
           const resps: VinculoExistente[] = (aluno.responsaveis ?? []).map((ra: any) => ({
             responsavelId: ra.responsavel?.id ?? ra.responsavelId,
@@ -344,6 +349,7 @@ export default function AlunoFormModal({ id, onClose, onSaved }: Props) {
           dataNascimento: new Date(fields.dataNascimento),
           escola: fields.escola.trim() || undefined,
           serieEscolar: fields.serieEscolar.trim() || undefined,
+          cadastradoKsis,
           ...(fotoAlterada && { foto }),
           cep: fields.cep.trim() || undefined,
           logradouro: fields.logradouro.trim() || undefined,
@@ -375,6 +381,7 @@ export default function AlunoFormModal({ id, onClose, onSaved }: Props) {
           dataNascimento: new Date(fields.dataNascimento),
           escola: fields.escola.trim() || undefined,
           serieEscolar: fields.serieEscolar.trim() || undefined,
+          cadastradoKsis,
           responsaveis: vinculos
             .filter((v) => v.responsavelId && v.parentesco)
             .map((v) => ({
@@ -495,6 +502,18 @@ export default function AlunoFormModal({ id, onClose, onSaved }: Props) {
                     onChange={(e) => set('escola', e.target.value)}
                     placeholder="Nome da escola"
                   />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={cadastradoKsis}
+                      onChange={(e) => setCadastradoKsis(e.target.checked)}
+                      className="h-4 w-4 rounded border-input accent-primary"
+                    />
+                    <span className="text-sm">Cadastrado no K-SIS (Kumon)</span>
+                  </label>
                 </div>
               </div>
 

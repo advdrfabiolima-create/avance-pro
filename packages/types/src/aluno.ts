@@ -9,6 +9,7 @@ export interface Aluno {
   escola?: string
   serieEscolar?: string
   ativo: boolean
+  cadastradoKsis: boolean
   criadoEm: Date
 }
 
@@ -26,6 +27,7 @@ export interface AlunoCreate {
   dataNascimento: Date
   escola?: string
   serieEscolar?: string
+  cadastradoKsis?: boolean
 }
 
 export interface AlunoUpdate {
@@ -34,6 +36,7 @@ export interface AlunoUpdate {
   escola?: string
   serieEscolar?: string
   ativo?: boolean
+  cadastradoKsis?: boolean
   cep?: string
   logradouro?: string
   numero?: string

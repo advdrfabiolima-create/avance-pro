@@ -36,6 +36,7 @@ export class AlunoService {
             dataNascimento: data.dataNascimento,
             escola: data.escola,
             serieEscolar: data.serieEscolar,
+            cadastradoKsis: data.cadastradoKsis ?? false,
           },
         })
 
@@ -290,6 +291,7 @@ export class AlunoService {
           ...(data.serieEscolar !== undefined && { serieEscolar: data.serieEscolar }),
           ...(data.foto !== undefined && { foto: data.foto }),
           ...(data.ativo !== undefined && { ativo: data.ativo }),
+          ...(data.cadastradoKsis !== undefined && { cadastradoKsis: data.cadastradoKsis }),
           ...(data.cep !== undefined && { cep: data.cep }),
           ...(data.logradouro !== undefined && { logradouro: data.logradouro }),
           ...(data.numero !== undefined && { numero: data.numero }),

@@ -5,6 +5,7 @@ export const criarAlunoSchema = z.object({
   dataNascimento: z.string().transform((s) => new Date(s)),
   escola: z.string().max(150).optional(),
   serieEscolar: z.string().max(50).optional(),
+  cadastradoKsis: z.boolean().optional(),
   responsaveis: z
     .array(
       z.object({
@@ -36,6 +37,7 @@ export const atualizarAlunoSchema = z.object({
   serieEscolar: z.string().max(50).optional(),
   foto: z.string().nullable().optional(),
   ativo: z.boolean().optional(),
+  cadastradoKsis: z.boolean().optional(),
   ...enderecoSchema,
 })
 
