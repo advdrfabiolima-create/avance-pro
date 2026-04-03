@@ -4,5 +4,5 @@ export interface OcrResult {
 }
 
 export interface OCRProvider {
-  recognize(imageBase64: string): Promise<OcrResult>
+  recognize(arquivoBase64: string, tipoArquivo?: string): Promise<OcrResult>
 }

@@ -11,9 +11,11 @@ export class OcrSpaceProvider implements OCRProvider {
     this.apiKey = apiKey ?? process.env['OCR_SPACE_KEY'] ?? 'helloworld'
   }
 
-  async recognize(imageBase64: string): Promise<OcrResult> {
-    // Strip data URI prefix if present, then reattach as expected by OCR.space
-    const base64Data = imageBase64.includes(',') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`
+  async recognize(arquivoBase64: string, tipoArquivo = 'image/jpeg'): Promise<OcrResult> {
+    // Garantir que o prefixo data URI esteja correto para o tipo do arquivo
+    const base64Data = arquivoBase64.includes(',')
+      ? arquivoBase64
+      : `data:${tipoArquivo};base64,${arquivoBase64}`
 
     const params = new URLSearchParams({
       base64Image: base64Data,

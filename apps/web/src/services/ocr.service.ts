@@ -3,6 +3,7 @@ import { api } from './api'
 export interface TentativaOcrResumo {
   id: string
   status: 'pendente' | 'processando' | 'revisao' | 'confirmado' | 'erro'
+  tipoArquivo: string
   criadoEm: string
   alunoId: string
   exercicioId: string
@@ -17,18 +18,37 @@ export interface RespostaOcrDetectada {
   tentativaOcrId: string
   questaoOrdem: number
   questaoId: string | null
-  tipoDetectado: 'objetiva' | 'numerica'
+  tipoQuestao: 'objetiva' | 'numerica'
+  // OCR — nunca muda após processamento
   letraDetectada: string | null
   valorDetectado: number | null
   confianca: number | null
-  confirmada: boolean
+  // Final — o que o usuário confirma
+  letraFinal: string | null
+  valorFinal: number | null
+  revisadaManual: boolean
+}
+
+export interface QuestaoOcr {
+  id: string
+  ordem: number
+  enunciado: string
+  tipo: 'objetiva' | 'numerica' | 'discursiva'
+  pontos: number
+  alternativas: Array<{ id: string; letra: string; texto: string }>
+  respostaCorreta: {
+    alternativaId: string | null
+    valorNumerico: number | null
+    tolerancia: number | null
+  } | null
 }
 
 export interface TentativaOcrCompleta {
   id: string
   alunoId: string
   exercicioId: string
-  imagemBase64: string
+  arquivoBase64: string
+  tipoArquivo: string
   textoOcr: string | null
   status: 'pendente' | 'processando' | 'revisao' | 'confirmado' | 'erro'
   erroMensagem: string | null
@@ -40,25 +60,13 @@ export interface TentativaOcrCompleta {
     titulo: string
     materia: { nome: string; codigo: string } | null
     nivel: { codigo: string; descricao: string } | null
-    questoes: Array<{
-      id: string
-      ordem: number
-      enunciado: string
-      tipo: 'objetiva' | 'numerica' | 'discursiva'
-      pontos: number
-      alternativas: Array<{ id: string; letra: string; texto: string }>
-      respostaCorreta: {
-        alternativaId: string | null
-        valorNumerico: number | null
-        tolerancia: number | null
-      } | null
-    }>
+    questoes: QuestaoOcr[]
   }
   respostasDetectadas: RespostaOcrDetectada[]
 }
 
 export const ocrService = {
-  criar: (data: { alunoId: string; exercicioId: string; imagemBase64: string }) =>
+  criar: (data: { alunoId: string; exercicioId: string; arquivoBase64: string; tipoArquivo: string }) =>
     api.post<{ success: boolean; data: { id: string } }>('/ocr', data),
 
   processar: (id: string) =>
@@ -76,9 +84,9 @@ export const ocrService = {
     id: string,
     respostas: Array<{
       respostaOcrId: string
-      letraDetectada?: string | null
-      valorDetectado?: number | null
-      confirmada: boolean
+      letraFinal: string | null
+      valorFinal: number | null
+      revisadaManual: boolean
     }>
   ) =>
     api.put<{ success: boolean; data: TentativaOcrCompleta }>(`/ocr/${id}/respostas`, { respostas }),

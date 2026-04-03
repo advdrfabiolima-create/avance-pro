@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Upload, Camera, ArrowLeft, Loader2, FileImage } from 'lucide-react'
+import { Upload, Camera, ArrowLeft, Loader2, FileImage, FileText } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Alert, AlertDescription } from '../../components/ui/Alert'
 import PageHeader from '../../components/shared/PageHeader'
@@ -8,16 +8,25 @@ import { ocrService } from '../../services/ocr.service'
 import { alunosService } from '../../services/alunos.service'
 import { exerciciosService } from '../../services/exercicios.service'
 
+const TIPOS_ACEITOS: Record<string, string> = {
+  'image/jpeg': 'JPG',
+  'image/png': 'PNG',
+  'image/webp': 'WebP',
+  'application/pdf': 'PDF',
+}
+
+function iconeArquivo(tipo: string) {
+  if (tipo === 'application/pdf') return <FileText size={32} className="text-red-300" />
+  return <FileImage size={32} className="text-slate-300" />
+}
+
 export default function OcrUpload() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
-  const preAlunoId = searchParams.get('alunoId') ?? ''
-  const preExercicioId = searchParams.get('exercicioId') ?? ''
-
-  const [alunoId, setAlunoId] = useState(preAlunoId)
-  const [exercicioId, setExercicioId] = useState(preExercicioId)
-  const [imagemBase64, setImagemBase64] = useState<string | null>(null)
+  const [alunoId, setAlunoId] = useState(searchParams.get('alunoId') ?? '')
+  const [exercicioId, setExercicioId] = useState(searchParams.get('exercicioId') ?? '')
+  const [arquivo, setArquivo] = useState<{ base64: string; tipo: string; nome: string } | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
@@ -25,28 +34,29 @@ export default function OcrUpload() {
   const [alunos, setAlunos] = useState<Array<{ id: string; nome: string }>>([])
   const [exercicios, setExercicios] = useState<Array<{ id: string; titulo: string }>>([])
 
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const cameraRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     alunosService.listar({ page: 1, pageSize: 200 }).then((r) => {
       setAlunos(r.data.data?.data ?? [])
     })
     exerciciosService.listar({ page: 1, pageSize: 200 }).then((r) => {
-      setExercicios(r.data.data?.items ?? r.data.data ?? [])
+      const res = r.data.data as any
+      setExercicios(res?.items ?? res?.data ?? [])
     })
   }, [])
 
   function handleFile(file: File) {
-    if (!file.type.startsWith('image/')) {
-      setErro('Selecione uma imagem (JPG, PNG, etc.)')
+    if (!TIPOS_ACEITOS[file.type]) {
+      setErro(`Tipo não suportado: ${file.type}. Use JPG, PNG, WebP ou PDF.`)
       return
     }
     const reader = new FileReader()
     reader.onload = (e) => {
-      const result = e.target?.result as string
-      setImagemBase64(result)
-      setPreviewUrl(result)
+      const dataUrl = e.target?.result as string
+      setArquivo({ base64: dataUrl, tipo: file.type, nome: file.name })
+      setPreviewUrl(file.type.startsWith('image/') ? dataUrl : null)
       setErro(null)
     }
     reader.readAsDataURL(file)
@@ -55,20 +65,26 @@ export default function OcrUpload() {
   async function handleEnviar() {
     if (!alunoId) { setErro('Selecione o aluno'); return }
     if (!exercicioId) { setErro('Selecione o exercício'); return }
-    if (!imagemBase64) { setErro('Adicione uma foto da folha'); return }
+    if (!arquivo) { setErro('Selecione um arquivo'); return }
 
     setLoading(true)
     setErro(null)
     try {
-      const res = await ocrService.criar({ alunoId, exercicioId, imagemBase64 })
+      const res = await ocrService.criar({
+        alunoId,
+        exercicioId,
+        arquivoBase64: arquivo.base64,
+        tipoArquivo: arquivo.tipo,
+      })
       const ocrId = res.data.data?.id
-      if (!ocrId) throw new Error('Falha ao criar')
+      if (!ocrId) throw new Error('Falha ao criar registro')
 
-      // Auto-processar
+      // Processar OCR automaticamente e ir para revisão
       await ocrService.processar(ocrId)
       navigate(`/ocr/${ocrId}/revisar`)
     } catch (e: any) {
-      setErro(e?.response?.data?.message ?? 'Erro ao processar imagem')
+      const msg = e?.response?.data?.message ?? e?.message ?? 'Erro ao processar'
+      setErro(msg)
     } finally {
       setLoading(false)
     }
@@ -77,8 +93,8 @@ export default function OcrUpload() {
   return (
     <div className="max-w-xl mx-auto space-y-6">
       <PageHeader
-        title="Correção por Foto"
-        subtitle="Fotografe a folha preenchida para correção automática"
+        title="Correção por OCR"
+        subtitle="Envie a folha respondida para extração automática das respostas"
         actions={
           <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
             <ArrowLeft size={14} className="mr-1.5" /> Voltar
@@ -122,24 +138,35 @@ export default function OcrUpload() {
         </select>
       </div>
 
-      {/* Upload / Câmera */}
+      {/* Upload */}
       <div className="space-y-1.5">
-        <label className="tp-label">Foto da Folha</label>
+        <label className="tp-label">Arquivo</label>
 
-        {previewUrl ? (
-          <div className="relative rounded-xl border border-border overflow-hidden">
-            <img src={previewUrl} alt="Preview" className="w-full max-h-80 object-contain bg-slate-50" />
-            <button
-              onClick={() => { setImagemBase64(null); setPreviewUrl(null) }}
-              className="absolute top-2 right-2 rounded-full bg-white/90 px-2 py-1 text-xs font-medium text-red-600 shadow hover:bg-white"
-            >
-              Remover
-            </button>
+        {arquivo ? (
+          <div className="rounded-xl border border-border overflow-hidden">
+            {previewUrl ? (
+              <img src={previewUrl} alt="Preview" className="w-full max-h-72 object-contain bg-slate-50" />
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 bg-slate-50">
+                <FileText size={40} className="text-red-400 mb-2" />
+                <p className="text-[13px] font-medium text-slate-600">{arquivo.nome}</p>
+                <p className="tp-caption">{TIPOS_ACEITOS[arquivo.tipo]}</p>
+              </div>
+            )}
+            <div className="flex items-center justify-between px-3 py-2 bg-slate-50 border-t border-border">
+              <span className="tp-caption">{arquivo.nome}</span>
+              <button
+                onClick={() => { setArquivo(null); setPreviewUrl(null) }}
+                className="text-[12px] text-red-500 font-medium hover:underline"
+              >
+                Remover
+              </button>
+            </div>
           </div>
         ) : (
           <div
             className="flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-border py-10 cursor-pointer hover:border-indigo-400 transition-colors"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => fileRef.current?.click()}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
               e.preventDefault()
@@ -149,65 +176,41 @@ export default function OcrUpload() {
           >
             <FileImage size={32} className="text-slate-300" />
             <p className="tp-secondary text-center">
-              Arraste uma imagem ou clique para selecionar<br />
-              <span className="text-[11px] text-slate-400">JPG, PNG, WEBP</span>
+              Arraste o arquivo ou clique para selecionar<br />
+              <span className="text-[11px] text-slate-400">JPG · PNG · WebP · PDF</span>
             </p>
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                type="button"
-                onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click() }}
-              >
-                <Upload size={13} className="mr-1.5" /> Galeria
+              <Button variant="outline" size="sm" type="button"
+                onClick={(e) => { e.stopPropagation(); fileRef.current?.click() }}>
+                <Upload size={13} className="mr-1.5" /> Arquivo
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                type="button"
-                onClick={(e) => { e.stopPropagation(); cameraInputRef.current?.click() }}
-              >
+              <Button variant="outline" size="sm" type="button"
+                onClick={(e) => { e.stopPropagation(); cameraRef.current?.click() }}>
                 <Camera size={13} className="mr-1.5" /> Câmera
               </Button>
             </div>
           </div>
         )}
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
-        />
-        <input
-          ref={cameraInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
-        />
+        <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf"
+          className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
+        <input ref={cameraRef} type="file" accept="image/*" capture="environment"
+          className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
       </div>
 
-      <Button
-        className="w-full"
-        onClick={handleEnviar}
-        disabled={loading || !imagemBase64 || !alunoId || !exercicioId}
-      >
+      <Button className="w-full" onClick={handleEnviar}
+        disabled={loading || !arquivo || !alunoId || !exercicioId}>
         {loading ? (
-          <>
-            <Loader2 size={14} className="mr-2 animate-spin" /> Processando OCR...
-          </>
+          <><Loader2 size={14} className="mr-2 animate-spin" /> Extraindo respostas...</>
         ) : (
-          'Enviar e Processar'
+          'Processar e Revisar'
         )}
       </Button>
 
-      <p className="tp-caption text-center">
-        O sistema detectará automaticamente as respostas marcadas na folha.
-        Você poderá revisar antes de confirmar a correção.
-      </p>
+      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-700">
+        <strong>Revisão obrigatória:</strong> após o processamento, você verá as respostas detectadas
+        e poderá corrigir qualquer erro antes de confirmar a correção.
+      </div>
     </div>
   )
 }
