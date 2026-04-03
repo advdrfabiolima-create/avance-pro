@@ -25,6 +25,7 @@ interface AlunoLista {
   dataNascimento: string
   foto?: string | null
   ativo: boolean
+  cadastradoKsis?: boolean
   matriculasAtivas?: MatriculaAtiva[]
   ultimaSessao?: string | null
   diasSemSessao?: number | null
@@ -344,11 +345,18 @@ export default function AlunosPage() {
                           </div>
                           <div>
                             <p className="font-medium">{aluno.nome}</p>
-                            {aluno.dataNascimento && (
-                              <p className="text-xs text-muted-foreground">
-                                {calcularIdade(aluno.dataNascimento)} anos
-                              </p>
-                            )}
+                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                              {aluno.dataNascimento && (
+                                <span className="text-xs text-muted-foreground">
+                                  {calcularIdade(aluno.dataNascimento)} anos
+                                </span>
+                              )}
+                              {aluno.cadastradoKsis && (
+                                <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide bg-indigo-100 text-indigo-700 border border-indigo-200">
+                                  K-SIS
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </td>
