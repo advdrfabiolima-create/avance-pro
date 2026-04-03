@@ -127,8 +127,13 @@ export default function GuiaPage() {
 
           <Section title="5. Disciplinas">
             <p className="text-sm text-muted-foreground">
-              Catálogo fixo com 3 matérias: <strong>Matemática, Português e Inglês</strong>. Cada matéria possui níveis progressivos (Nível A, B, C...) com código, descrição e ordem. Tela apenas informativa.
+              Catálogo fixo com 3 matérias: <strong>Matemática, Português e Inglês</strong>. Cada matéria possui níveis progressivos (Nível A, B, C...) com código, descrição e ordem.
             </p>
+            <ul className="mt-2 space-y-1 text-sm text-muted-foreground list-disc list-inside">
+              <li>Exibe a <strong>quantidade de alunos ativos</strong> matriculados em cada disciplina</li>
+              <li>Botão <strong>"Ver alunos"</strong> (visível ao passar o mouse) abre a lista de alunos já filtrada pela disciplina</li>
+              <li>Clique no card abre o detalhe com a estrutura completa de níveis</li>
+            </ul>
           </Section>
 
           <Section title="6. Sessões">
@@ -227,19 +232,96 @@ export default function GuiaPage() {
             </p>
           </Section>
 
-          <Section title="17. Importações">
+          <Section title="17. Correção por OCR (Fotografia)">
+            <p className="text-sm text-muted-foreground">
+              Permite corrigir exercícios físicos (folhas impressas) através do envio de uma foto ou PDF. O sistema extrai as respostas automaticamente e apresenta uma <strong>tela de revisão obrigatória</strong> antes de consolidar a correção.
+            </p>
+
+            <p className="text-sm font-medium mt-4">Formatos aceitos</p>
+            <ul className="mt-1 space-y-1 text-sm text-muted-foreground list-disc list-inside">
+              <li>Imagens: JPG, PNG, WebP</li>
+              <li>Documentos: PDF</li>
+              <li>Recomendado: folhas escaneadas ou fotografadas com boa iluminação e enquadramento</li>
+            </ul>
+
+            <p className="text-sm font-medium mt-4">Tipos de questão suportados</p>
+            <div className="mt-2">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-1.5 pr-4 font-medium">Tipo</th>
+                    <th className="text-left py-1.5 font-medium">Como o OCR detecta</th>
+                  </tr>
+                </thead>
+                <tbody className="text-muted-foreground">
+                  <tr className="border-b"><td className="py-1.5 pr-4">Objetiva (A–E)</td><td>Padrões como "1) A", "2 - C", "3: B"</td></tr>
+                  <tr><td className="py-1.5 pr-4">Numérica</td><td>Padrões como "1) 12", "2: 3,5", "3 = 100"</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">
+              Questões discursivas não são suportadas pelo OCR e são marcadas como não respondidas.
+            </p>
+
+            <p className="text-sm font-medium mt-4">Fluxo de uso</p>
+            <ol className="mt-1 space-y-1 text-sm text-muted-foreground list-decimal list-inside">
+              <li><strong>Upload</strong> — selecionar aluno, exercício e enviar o arquivo (câmera ou galeria)</li>
+              <li><strong>Processamento</strong> — OCR extrai o texto; parser heurístico identifica respostas por número da questão</li>
+              <li><strong>Revisão obrigatória</strong> — tela mostra para cada questão: sugestão do OCR e campo editável para resposta final</li>
+              <li><strong>Confirmação</strong> — após revisão, o sistema usa o motor de correção padrão, calcula pontuação e registra a tentativa</li>
+            </ol>
+
+            <p className="text-sm font-medium mt-4">Tela de revisão — indicadores visuais</p>
+            <div className="mt-2">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-1.5 pr-4 font-medium">Indicador</th>
+                    <th className="text-left py-1.5 font-medium">Significado</th>
+                  </tr>
+                </thead>
+                <tbody className="text-muted-foreground">
+                  <tr className="border-b"><td className="py-1.5 pr-4">✓ Cinza — Detectado</td><td>OCR identificou a resposta com boa confiança</td></tr>
+                  <tr className="border-b"><td className="py-1.5 pr-4">⚠ Âmbar — Alterado</td><td>Usuário corrigiu a sugestão do OCR</td></tr>
+                  <tr className="border-b"><td className="py-1.5 pr-4">✓ Verde — Adicionado</td><td>OCR não detectou; usuário preencheu manualmente</td></tr>
+                  <tr><td className="py-1.5 pr-4">○ Vazio</td><td>Sem resposta — será marcada como errada ao confirmar</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <p className="text-sm font-medium mt-4">Atalhos de teclado na revisão</p>
+            <ul className="mt-1 space-y-1 text-sm text-muted-foreground list-disc list-inside">
+              <li>Clique em uma questão para focá-la</li>
+              <li>Pressione <strong>A / B / C / D / E</strong> para selecionar a letra (avança automaticamente para a próxima)</li>
+              <li><strong>Tab</strong> ou <strong>Enter</strong> para navegar entre questões</li>
+            </ul>
+
+            <p className="text-sm font-medium mt-4">Como acessar</p>
+            <p className="text-sm text-muted-foreground">
+              Menu <strong>Exercícios</strong> → botão <strong>"Corrigir por Foto"</strong> no canto superior direito.
+            </p>
+
+            <div className="mt-3 rounded-lg border bg-muted/30 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Importante</p>
+              <p className="text-sm text-muted-foreground">
+                O OCR <strong>não</strong> consolida a correção de forma autônoma. A revisão manual é sempre obrigatória. Os dados brutos extraídos (texto OCR, sugestões e respostas finais) são armazenados para auditoria e melhoria futura do sistema.
+              </p>
+            </div>
+          </Section>
+
+          <Section title="18. Importações">
             <p className="text-sm text-muted-foreground">
               Upload de arquivos CSV para importação em massa de alunos, responsáveis e pagamentos. Cada arquivo é validado linha por linha com relatório de erros detalhado antes de importar.
             </p>
           </Section>
 
-          <Section title="18. Usuários">
+          <Section title="19. Usuários">
             <p className="text-sm text-muted-foreground">
               <em>(Apenas Franqueado)</em> — Gerenciamento de acessos ao sistema: criar assistentes, alterar perfil, ativar ou desativar contas. Um usuário não pode desativar a própria conta.
             </p>
           </Section>
 
-          <Section title="19. Configurações">
+          <Section title="20. Configurações">
             <p className="text-sm font-medium">Minha Conta</p>
             <p className="text-sm text-muted-foreground mt-1">Nome, e-mail, perfil e data de cadastro. Permite alterar a senha com validação da senha atual.</p>
 
@@ -266,7 +348,8 @@ export default function GuiaPage() {
               <li>Gerar Mensalidades (todo mês) → Registrar Pagamentos recebidos</li>
               <li>Enviar Cobranças via Asaas (PIX/Boleto) para inadimplentes</li>
               <li>Monitorar Dashboard → atender alertas de alunos em risco</li>
-              <li>Aplicar Exercícios → corrigir automaticamente → acompanhar evolução</li>
+              <li>Aplicar Exercícios → corrigir automaticamente → acompanhar evolução no perfil do aluno</li>
+              <li>Fotografar folha física → Corrigir por OCR → Revisar detecções → Confirmar correção</li>
               <li>Registrar Reuniões com responsáveis quando necessário</li>
             </ol>
           </Section>
