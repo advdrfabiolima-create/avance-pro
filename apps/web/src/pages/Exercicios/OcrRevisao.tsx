@@ -1,13 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  ArrowLeft, CheckCircle2, AlertTriangle, Loader2,
-  RefreshCw, Check, ScanLine, Eye,
+  ArrowLeft, Loader2, RefreshCw, Check, AlertTriangle,
+  Info, CheckCircle2, X, Eye, ChevronRight,
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
-import { Alert, AlertDescription } from '../../components/ui/Alert'
-import { Badge } from '../../components/ui/Badge'
-import PageHeader from '../../components/shared/PageHeader'
 import {
   ocrService,
   type TentativaOcrCompleta,
@@ -15,152 +12,263 @@ import {
   type QuestaoOcr,
 } from '../../services/ocr.service'
 
-// ─── Tipos internos ───────────────────────────────────────────────────────────
+// ─── Estado local por questão ─────────────────────────────────────────────────
 
-interface EstadoResposta {
+interface EstadoQ {
   respostaOcrId: string
-  letraFinal: string | null
-  valorFinal: string         // string para edição, convertido antes de salvar
-  revisadaManual: boolean
+  letraFinal: string        // '' = sem resposta, 'A'-'E'
+  valorFinal: string        // '' = sem resposta, número como string
+  tocado: boolean           // usuário editou este campo
 }
 
-// ─── Badge de status ─────────────────────────────────────────────────────────
+type CardStatus = 'vazio' | 'detectado' | 'alterado' | 'manual'
 
-type StatusDeteccao = 'detectado-alta' | 'detectado-media' | 'detectado-baixa' | 'nao-detectado' | 'revisado'
+function getCardStatus(estado: EstadoQ, det: RespostaOcrDetectada | undefined): CardStatus {
+  const temResposta = !!(estado.letraFinal || estado.valorFinal)
+  if (!temResposta) return 'vazio'
 
-function statusDeteccao(d: RespostaOcrDetectada | undefined, local: EstadoResposta): StatusDeteccao {
-  if (local.revisadaManual) return 'revisado'
-  if (!d || (d.letraDetectada == null && d.valorDetectado == null)) return 'nao-detectado'
-  const c = d.confianca ?? 0
-  if (c >= 0.85) return 'detectado-alta'
-  if (c >= 0.6) return 'detectado-media'
-  return 'detectado-baixa'
+  const ocrOriginal = det?.letraDetectada ?? (det?.valorDetectado != null ? String(det.valorDetectado) : null)
+  const atual = estado.letraFinal || estado.valorFinal
+
+  if (!ocrOriginal) return 'manual'        // OCR não detectou, usuário preencheu
+  if (!estado.tocado) return 'detectado'   // vem do OCR, não foi alterado
+  if (atual !== ocrOriginal) return 'alterado'
+  return 'detectado'
 }
 
-function StatusBadge({ status }: { status: StatusDeteccao }) {
-  switch (status) {
-    case 'revisado':
-      return <Badge variant="default" className="text-[10px]">Revisado</Badge>
-    case 'detectado-alta':
-      return <Badge variant="success" className="text-[10px]">Detectado</Badge>
-    case 'detectado-media':
-      return <Badge variant="warning" className="text-[10px]">Confiança média</Badge>
-    case 'detectado-baixa':
-      return <Badge variant="destructive" className="text-[10px]">Confiança baixa</Badge>
-    case 'nao-detectado':
-      return <Badge variant="outline" className="text-[10px] border-red-200 text-red-500">Não detectado</Badge>
-  }
+// ─── Status icon ──────────────────────────────────────────────────────────────
+
+function StatusIcon({ status }: { status: CardStatus }) {
+  if (status === 'vazio') return (
+    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-red-300" />
+  )
+  if (status === 'alterado') return (
+    <AlertTriangle size={16} className="shrink-0 text-amber-500" />
+  )
+  if (status === 'manual') return (
+    <CheckCircle2 size={16} className="shrink-0 text-emerald-500" />
+  )
+  // detectado
+  return <CheckCircle2 size={16} className="shrink-0 text-slate-400" />
 }
 
-// ─── Linha de questão ─────────────────────────────────────────────────────────
+// ─── Letter pills ─────────────────────────────────────────────────────────────
 
-interface LinhaQuestaoProps {
+interface LetraPillsProps {
+  letras: string[]
+  selected: string
+  onSelect: (l: string) => void
+  disabled?: boolean
+}
+
+function LetraPills({ letras, selected, onSelect, disabled }: LetraPillsProps) {
+  return (
+    <div className="flex gap-1">
+      {letras.map((l) => {
+        const isActive = l === selected
+        return (
+          <button
+            key={l}
+            type="button"
+            tabIndex={-1}
+            disabled={disabled}
+            onClick={() => onSelect(isActive ? '' : l)}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[12px] font-bold transition-colors"
+            style={{
+              background: isActive ? '#2563EB' : '#F1F5F9',
+              color: isActive ? '#fff' : '#6B7280',
+              outline: 'none',
+            }}
+          >
+            {l}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// ─── QuestaoCard ──────────────────────────────────────────────────────────────
+
+interface QuestaoCardProps {
   questao: QuestaoOcr
   deteccao: RespostaOcrDetectada | undefined
-  estado: EstadoResposta
-  onChange: (novo: Partial<EstadoResposta>) => void
+  estado: EstadoQ
+  onChange: (patch: Partial<EstadoQ>) => void
+  onAdvance: () => void
+  disabled: boolean
+  cardRef?: (el: HTMLDivElement | null) => void
 }
 
-function LinhaQuestao({ questao, deteccao, estado, onChange }: LinhaQuestaoProps) {
-  const status = statusDeteccao(deteccao, estado)
+function QuestaoCard({
+  questao, deteccao, estado, onChange, onAdvance, disabled, cardRef,
+}: QuestaoCardProps) {
+  const status = getCardStatus(estado, deteccao)
 
-  // Sugestão do OCR como texto legível
-  const sugestaoOcr = (() => {
-    if (!deteccao) return null
-    if (deteccao.letraDetectada) return deteccao.letraDetectada
-    if (deteccao.valorDetectado != null) return String(deteccao.valorDetectado)
-    return null
-  })()
+  const ocrSugestao =
+    deteccao?.letraDetectada ??
+    (deteccao?.valorDetectado != null ? String(deteccao.valorDetectado) : null)
 
-  function marcarRevisado(patch: Partial<EstadoResposta>) {
-    onChange({ ...patch, revisadaManual: true })
+  const cardBorder =
+    status === 'vazio' ? '#FECACA'
+    : status === 'alterado' ? '#FDE68A'
+    : status === 'manual' ? '#BBF7D0'
+    : '#E5E7EB'
+
+  const cardBg =
+    status === 'alterado' ? '#FEFCE8'
+    : status === 'manual' ? '#F0FFF4'
+    : '#ffffff'
+
+  function handleKey(e: React.KeyboardEvent) {
+    if (disabled) return
+    if (questao.tipo === 'objetiva') {
+      const k = e.key.toUpperCase()
+      if (/^[A-E]$/.test(k)) {
+        e.preventDefault()
+        const letras = questao.alternativas.map((a) => a.letra.toUpperCase())
+        if (letras.includes(k)) {
+          onChange({ letraFinal: k === estado.letraFinal ? '' : k, tocado: true })
+          if (k !== estado.letraFinal) setTimeout(onAdvance, 120)
+        }
+      }
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      onAdvance()
+    }
   }
 
   return (
     <div
-      className="grid gap-3 rounded-xl border p-4 transition-colors"
-      style={{
-        gridTemplateColumns: '2rem 1fr auto auto',
-        borderColor: status === 'nao-detectado' ? '#FCA5A5'
-          : status === 'revisado' ? '#86EFAC'
-          : '#E2E8F0',
-        background: status === 'revisado' ? '#F0FFF4' : undefined,
-      }}
+      ref={cardRef}
+      tabIndex={disabled ? -1 : 0}
+      onKeyDown={handleKey}
+      className="flex items-center gap-2.5 rounded-lg p-3 outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 transition-colors"
+      style={{ border: `1px solid ${cardBorder}`, background: cardBg }}
+      title={questao.enunciado}
     >
       {/* Número */}
       <span
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold self-start mt-0.5"
-        style={{ background: '#EEF2FF', color: '#4338CA' }}
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
+        style={{ background: '#F1F5F9', color: '#374151' }}
       >
-        {questao.ordem}
+        {String(questao.ordem).padStart(2, '0')}
       </span>
 
-      {/* Enunciado + tipo + status */}
-      <div className="min-w-0">
-        <p className="text-[13px] font-medium text-[#1E293B] leading-snug truncate" title={questao.enunciado}>
-          {questao.enunciado}
-        </p>
-        <div className="flex items-center gap-1.5 mt-1">
-          <span className="tp-caption capitalize">{questao.tipo}</span>
-          <StatusBadge status={status} />
-        </div>
-      </div>
-
-      {/* Sugestão OCR */}
-      <div className="flex flex-col items-center gap-1 shrink-0">
-        <span className="text-[10px] text-slate-400 uppercase font-semibold tracking-wide">OCR</span>
+      {/* OCR detectou */}
+      <div className="flex shrink-0 flex-col items-center gap-px">
+        <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">ocr</span>
         <span
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-[13px] font-bold"
+          className="flex h-6 w-7 items-center justify-center rounded text-[12px] font-bold"
           style={{
-            background: sugestaoOcr ? '#F1F5F9' : '#FEF2F2',
-            color: sugestaoOcr ? '#475569' : '#FCA5A5',
-            border: '1px solid',
-            borderColor: sugestaoOcr ? '#E2E8F0' : '#FECACA',
+            background: ocrSugestao ? '#F1F5F9' : '#FEF2F2',
+            color: ocrSugestao ? '#6B7280' : '#FECACA',
           }}
-          title={sugestaoOcr ? `OCR detectou: ${sugestaoOcr}` : 'Não detectado'}
         >
-          {sugestaoOcr ?? '—'}
+          {ocrSugestao ?? '—'}
         </span>
       </div>
 
-      {/* Resposta final (editável) */}
-      <div className="flex flex-col items-center gap-1 shrink-0">
-        <span className="text-[10px] text-indigo-500 uppercase font-semibold tracking-wide">Final</span>
+      {/* Arrow */}
+      <ChevronRight size={12} className="shrink-0 text-slate-300" />
+
+      {/* Input */}
+      <div className="flex-1">
         {questao.tipo === 'objetiva' ? (
-          <select
-            className="h-8 w-16 rounded-lg border text-[13px] font-bold text-center focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-            style={{
-              borderColor: estado.letraFinal ? '#4F46E5' : '#E2E8F0',
-              background: estado.letraFinal ? '#EEF2FF' : undefined,
-              color: estado.letraFinal ? '#4338CA' : '#94A3B8',
-            }}
-            value={estado.letraFinal ?? ''}
-            onChange={(e) => marcarRevisado({ letraFinal: e.target.value || null })}
-          >
-            <option value="">—</option>
-            {questao.alternativas.map((a) => (
-              <option key={a.id} value={a.letra}>{a.letra}</option>
-            ))}
-          </select>
+          <LetraPills
+            letras={questao.alternativas.map((a) => a.letra.toUpperCase())}
+            selected={estado.letraFinal}
+            onSelect={(l) => !disabled && onChange({ letraFinal: l, tocado: true })}
+            disabled={disabled}
+          />
         ) : (
           <input
             type="number"
-            className="h-8 w-20 rounded-lg border px-2 text-[13px] font-bold text-center focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-            style={{
-              borderColor: estado.valorFinal ? '#4F46E5' : '#E2E8F0',
-              background: estado.valorFinal ? '#EEF2FF' : undefined,
-            }}
+            tabIndex={-1}
+            disabled={disabled}
             placeholder="—"
             value={estado.valorFinal}
-            onChange={(e) => marcarRevisado({ valorFinal: e.target.value })}
+            onChange={(e) => !disabled && onChange({ valorFinal: e.target.value, tocado: true })}
+            onKeyDown={(e) => e.key === 'Enter' && onAdvance()}
+            className="w-24 rounded-md border border-[#E5E7EB] px-2 py-1 text-[13px] font-bold text-center focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            style={{ background: estado.valorFinal ? '#EFF6FF' : undefined }}
           />
         )}
+      </div>
+
+      {/* Status */}
+      <StatusIcon status={status} />
+    </div>
+  )
+}
+
+// ─── Barra de progresso ───────────────────────────────────────────────────────
+
+function ProgressBar({ atual, total }: { atual: number; total: number }) {
+  const pct = total > 0 ? Math.round((atual / total) * 100) : 0
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-300"
+          style={{
+            width: `${pct}%`,
+            background: pct === 100 ? '#10B981' : '#2563EB',
+          }}
+        />
+      </div>
+      <span className="shrink-0 text-[12px] font-medium text-slate-500">
+        {atual} <span className="text-slate-300">/</span> {total}
+      </span>
+    </div>
+  )
+}
+
+// ─── Modal de arquivo ────────────────────────────────────────────────────────
+
+function ArquivoModal({ base64, tipo, onClose }: { base64: string; tipo: string; onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="relative max-h-full max-w-3xl overflow-auto rounded-xl bg-white shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-[#E5E7EB] px-4 py-3">
+          <span className="text-[13px] font-semibold text-[#111827]">Arquivo enviado</span>
+          <button onClick={onClose} className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+            <X size={15} />
+          </button>
+        </div>
+        <div className="p-4">
+          {tipo.startsWith('image/') ? (
+            <img src={base64} alt="Arquivo" className="max-w-full rounded-lg" />
+          ) : (
+            <div className="flex flex-col items-center gap-4 py-8 text-center">
+              <p className="text-[14px] text-slate-600">Pré-visualização de PDF não disponível no navegador.</p>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const link = document.createElement('a')
+                  link.href = base64
+                  link.download = 'exercicio.pdf'
+                  link.click()
+                }}
+              >
+                Baixar PDF
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
-// ─── OcrRevisao ───────────────────────────────────────────────────────────────
+// ─── OcrRevisao ──────────────────────────────────────────────────────────────
 
 export default function OcrRevisao() {
   const { id } = useParams<{ id: string }>()
@@ -168,24 +276,25 @@ export default function OcrRevisao() {
 
   const [ocr, setOcr] = useState<TentativaOcrCompleta | null>(null)
   const [loading, setLoading] = useState(true)
-  const [salvando, setSalvando] = useState(false)
   const [confirmando, setConfirmando] = useState(false)
   const [reprocessando, setReprocessando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
-  const [mostrarTexto, setMostrarTexto] = useState(false)
+  const [verArquivo, setVerArquivo] = useState(false)
+  const [mostrarAlertaVazios, setMostrarAlertaVazios] = useState(false)
+  const [mostrarTextoOcr, setMostrarTextoOcr] = useState(false)
 
-  // Estado local de cada resposta, indexado por questaoId
-  const [estados, setEstados] = useState<Map<string, EstadoResposta>>(new Map())
+  const [estados, setEstados] = useState<Map<string, EstadoQ>>(new Map())
+  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map())
 
   function inicializarEstados(dados: TentativaOcrCompleta) {
-    const map = new Map<string, EstadoResposta>()
+    const map = new Map<string, EstadoQ>()
     for (const d of dados.respostasDetectadas) {
       if (!d.questaoId) continue
       map.set(d.questaoId, {
         respostaOcrId: d.id,
-        letraFinal: d.letraFinal,
+        letraFinal: d.letraFinal ?? '',
         valorFinal: d.valorFinal != null ? String(d.valorFinal) : '',
-        revisadaManual: d.revisadaManual,
+        tocado: d.revisadaManual,
       })
     }
     setEstados(map)
@@ -198,38 +307,43 @@ export default function OcrRevisao() {
         const data = r.data.data
         if (data) { setOcr(data); inicializarEstados(data) }
       })
-      .catch(() => setErro('Erro ao carregar'))
+      .catch(() => setErro('Não foi possível carregar o registro OCR.'))
       .finally(() => setLoading(false))
   }, [id])
 
-  function handleChange(questaoId: string, patch: Partial<EstadoResposta>) {
+  function handleChange(questaoId: string, patch: Partial<EstadoQ>) {
     setEstados((prev) => {
-      const current = prev.get(questaoId)
-      if (!current) return prev
+      const cur = prev.get(questaoId)
+      if (!cur) return prev
       const next = new Map(prev)
-      next.set(questaoId, { ...current, ...patch })
+      next.set(questaoId, { ...cur, ...patch })
       return next
     })
   }
 
-  async function handleSalvar() {
-    if (!id) return
-    setSalvando(true)
-    setErro(null)
-    try {
-      const respostas = [...estados.values()].map((e) => ({
-        respostaOcrId: e.respostaOcrId,
-        letraFinal: e.letraFinal,
-        valorFinal: e.valorFinal ? parseFloat(e.valorFinal) : null,
-        revisadaManual: e.revisadaManual,
-      }))
-      const r = await ocrService.atualizarRespostas(id, respostas)
-      if (r.data.data) { setOcr(r.data.data); inicializarEstados(r.data.data) }
-    } catch (e: any) {
-      setErro(e?.response?.data?.message ?? 'Erro ao salvar revisões')
-    } finally {
-      setSalvando(false)
+  const questoesOrdenadas = useCallback(() => {
+    if (!ocr) return []
+    return ocr.exercicio.questoes.filter((q) => q.tipo !== 'discursiva')
+  }, [ocr])
+
+  function advanceTo(questaoId: string) {
+    const qs = questoesOrdenadas()
+    const idx = qs.findIndex((q) => q.id === questaoId)
+    const next = qs[idx + 1]
+    if (next) {
+      cardRefs.current.get(next.id)?.focus()
     }
+  }
+
+  async function salvarEstados() {
+    if (!id) return
+    const respostas = [...estados.values()].map((e) => ({
+      respostaOcrId: e.respostaOcrId,
+      letraFinal: e.letraFinal || null,
+      valorFinal: e.valorFinal ? parseFloat(e.valorFinal) : null,
+      revisadaManual: e.tocado,
+    }))
+    await ocrService.atualizarRespostas(id, respostas)
   }
 
   async function handleReprocessar() {
@@ -246,199 +360,355 @@ export default function OcrRevisao() {
     }
   }
 
-  async function handleConfirmar() {
-    if (!id || !ocr) return
+  async function handleConfirmar(force = false) {
+    if (!ocr || !id) return
 
-    // Salvar estado atual antes de confirmar
-    await handleSalvar()
+    const detMap = new Map(ocr.respostasDetectadas.map((d) => [d.questaoId ?? '', d]))
+    const questoes = questoesOrdenadas()
+    const vazios = questoes.filter((q) => {
+      const e = estados.get(q.id)
+      return !e || (!e.letraFinal && !e.valorFinal)
+    })
+
+    if (!force && vazios.length > 0) {
+      setMostrarAlertaVazios(true)
+      return
+    }
 
     setConfirmando(true)
     setErro(null)
     try {
+      await salvarEstados()
       const r = await ocrService.confirmar(id)
       navigate(`/tentativas/${r.data.data?.tentativaId}`)
     } catch (e: any) {
-      setErro(e?.response?.data?.message ?? 'Erro ao confirmar')
+      setErro(e?.response?.data?.message ?? 'Erro ao confirmar correção')
       setConfirmando(false)
     }
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-
+  // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex h-60 items-center justify-center">
-        <Loader2 className="animate-spin text-indigo-500" size={24} />
+      <div className="flex h-[60vh] items-center justify-center">
+        <Loader2 className="animate-spin text-blue-500" size={28} />
+      </div>
+    )
+  }
+  if (!ocr) {
+    return (
+      <div className="flex h-[60vh] flex-col items-center justify-center gap-3 text-center">
+        <AlertTriangle size={24} className="text-red-400" />
+        <p className="text-[14px] text-slate-500">Registro OCR não encontrado.</p>
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+          <ArrowLeft size={14} className="mr-1.5" /> Voltar
+        </Button>
       </div>
     )
   }
 
-  if (!ocr) {
-    return (
-      <Alert variant="destructive">
-        <AlertDescription>Registro OCR não encontrado.</AlertDescription>
-      </Alert>
-    )
-  }
-
-  const questoesOcr = ocr.exercicio.questoes.filter((q) => q.tipo !== 'discursiva')
+  // ── Dados derivados ────────────────────────────────────────────────────────
+  const questoes = questoesOrdenadas()
   const questoesDisc = ocr.exercicio.questoes.filter((q) => q.tipo === 'discursiva')
   const detMap = new Map(ocr.respostasDetectadas.map((d) => [d.questaoId ?? '', d]))
 
-  // Estatísticas
-  const total = questoesOcr.length
+  const total = questoes.length
+  const comResposta = questoes.filter((q) => {
+    const e = estados.get(q.id)
+    return e && (e.letraFinal || e.valorFinal)
+  }).length
   const detectadas = ocr.respostasDetectadas.filter(
     (d) => d.letraDetectada != null || d.valorDetectado != null
   ).length
-  const revisadas = [...estados.values()].filter((e) => e.revisadaManual).length
-  const naoDetectadas = total - detectadas
 
   const jaConfirmado = ocr.status === 'confirmado'
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="max-w-2xl mx-auto space-y-5 pb-10">
-      <PageHeader
-        title="Revisar Detecções"
-        subtitle={`${ocr.aluno.nome} · ${ocr.exercicio.titulo}`}
-        actions={
-          <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-            <ArrowLeft size={14} className="mr-1.5" /> Voltar
-          </Button>
-        }
-      />
+    <div className="-mx-4 -mt-6 md:-mx-6 flex flex-col">
 
-      {/* Painel de status */}
-      <div className="grid grid-cols-4 gap-2">
-        {[
-          { label: 'Questões', value: total, color: '#4338CA' },
-          { label: 'Detectadas', value: detectadas, color: '#059669' },
-          { label: 'Não detect.', value: naoDetectadas, color: naoDetectadas > 0 ? '#DC2626' : '#94A3B8' },
-          { label: 'Revisadas', value: revisadas, color: '#7C3AED' },
-        ].map((s) => (
-          <div key={s.label} className="rounded-xl border border-border p-3 text-center">
-            <p className="text-[22px] font-bold leading-tight" style={{ color: s.color }}>{s.value}</p>
-            <p className="tp-caption mt-0.5">{s.label}</p>
-          </div>
-        ))}
-      </div>
+      {/* ── Header fixo ──────────────────────────────────────────────────────── */}
+      <div
+        className="sticky top-0 z-10 flex items-center gap-4 bg-white px-4 py-4 md:px-6"
+        style={{ borderBottom: '1px solid #E5E7EB' }}
+      >
+        <button
+          onClick={() => navigate(-1)}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+        >
+          <ArrowLeft size={15} />
+        </button>
 
-      {/* Erros e avisos */}
-      {erro && (
-        <Alert variant="destructive">
-          <AlertDescription>{erro}</AlertDescription>
-        </Alert>
-      )}
-      {ocr.status === 'erro' && (
-        <Alert variant="destructive">
-          <AlertTriangle size={14} className="mr-2 inline" />
-          <AlertDescription>
-            Erro no OCR: {ocr.erroMensagem}.{' '}
-            <button className="underline font-medium" onClick={handleReprocessar}>
-              Tentar novamente
-            </button>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Instruções */}
-      {!jaConfirmado && (
-        <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-[13px] text-indigo-700">
-          <strong>Como revisar:</strong> verifique a coluna <em>OCR</em> (sugestão automática) e confirme ou
-          corrija a coluna <em>Final</em> (resposta que será corrigida). Questões que você editar ficam
-          marcadas como "Revisado".
-        </div>
-      )}
-
-      {/* Lista de questões objetivas/numéricas */}
-      <div className="space-y-2.5">
-        <div className="flex items-center justify-between">
-          <h2 className="tp-section-title">
-            Questões ({total})
-          </h2>
-          <Button variant="ghost" size="sm" onClick={handleReprocessar} disabled={reprocessando || jaConfirmado}>
-            {reprocessando
-              ? <><Loader2 size={12} className="mr-1.5 animate-spin" /> Processando...</>
-              : <><RefreshCw size={12} className="mr-1.5" /> Reprocessar OCR</>
-            }
-          </Button>
+        <div className="flex-1 min-w-0">
+          <p className="truncate text-[14px] font-semibold text-[#111827] leading-tight">
+            {ocr.aluno.nome}
+          </p>
+          <p className="truncate text-[12px] text-[#6B7280] leading-tight">
+            {ocr.exercicio.titulo}
+            {ocr.exercicio.materia && (
+              <> · <span className="text-[11px]">{ocr.exercicio.materia.nome}</span></>
+            )}
+          </p>
         </div>
 
-        {questoesOcr.map((q) => {
-          const estado = estados.get(q.id)
-          if (!estado) return null
-          return (
-            <LinhaQuestao
-              key={q.id}
-              questao={q}
-              deteccao={detMap.get(q.id)}
-              estado={estado}
-              onChange={(patch) => !jaConfirmado && handleChange(q.id, patch)}
-            />
-          )
-        })}
-      </div>
-
-      {/* Questões discursivas (informativo) */}
-      {questoesDisc.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-700">
-          <AlertTriangle size={13} className="mr-1.5 inline" />
-          <strong>{questoesDisc.length} questão(ões) discursiva(s)</strong> não são suportadas pelo OCR
-          e serão marcadas como não respondidas.
-        </div>
-      )}
-
-      {/* Texto bruto extraído */}
-      {ocr.textoOcr && (
-        <div className="rounded-xl border border-border">
-          <button
-            className="flex w-full items-center gap-2 px-4 py-3 text-[13px] font-medium text-slate-500 select-none"
-            onClick={() => setMostrarTexto((v) => !v)}
+        <div className="hidden md:flex items-center gap-1.5">
+          <span
+            className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold"
+            style={{
+              background: jaConfirmado ? '#D1FAE5' : ocr.status === 'erro' ? '#FEE2E2' : '#EFF6FF',
+              color: jaConfirmado ? '#065F46' : ocr.status === 'erro' ? '#991B1B' : '#1D4ED8',
+            }}
           >
-            <Eye size={13} /> Texto extraído pelo OCR
-          </button>
-          {mostrarTexto && (
-            <pre className="px-4 pb-4 text-[12px] text-slate-500 whitespace-pre-wrap leading-relaxed border-t border-border">
-              {ocr.textoOcr}
-            </pre>
-          )}
+            {jaConfirmado ? <CheckCircle2 size={10} /> : ocr.status === 'erro' ? <AlertTriangle size={10} /> : null}
+            {jaConfirmado ? 'Confirmado' : ocr.status === 'revisao' ? 'Aguardando revisão' : ocr.status === 'erro' ? 'Erro' : 'Processando...'}
+          </span>
         </div>
-      )}
 
-      {/* Ações */}
-      {!jaConfirmado ? (
-        <div className="flex gap-3">
+        <div className="flex items-center gap-2 shrink-0">
           <Button
             variant="outline"
-            onClick={handleSalvar}
-            disabled={salvando || confirmando}
-            className="shrink-0"
+            size="sm"
+            onClick={() => setVerArquivo(true)}
+            className="hidden sm:flex"
           >
-            {salvando ? <Loader2 size={14} className="mr-1.5 animate-spin" /> : null}
-            Salvar rascunho
+            <Eye size={13} className="mr-1.5" /> Ver arquivo
           </Button>
-          <Button
-            className="flex-1"
-            onClick={handleConfirmar}
-            disabled={confirmando || salvando}
-          >
-            {confirmando
-              ? <><Loader2 size={14} className="mr-2 animate-spin" /> Confirmando...</>
-              : <><Check size={14} className="mr-2" /> Confirmar e Corrigir</>
-            }
-          </Button>
-        </div>
-      ) : (
-        <div className="flex gap-3">
-          <div className="flex flex-1 items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3">
-            <CheckCircle2 size={16} className="text-green-500 shrink-0" />
-            <p className="text-[13px] text-green-700 font-medium">Correção confirmada</p>
-          </div>
-          {ocr.tentativaId && (
-            <Button variant="outline" onClick={() => navigate(`/tentativas/${ocr.tentativaId}`)}>
-              Ver Resultado
+
+          {!jaConfirmado && (
+            <Button
+              size="sm"
+              onClick={() => handleConfirmar()}
+              disabled={confirmando || reprocessando}
+            >
+              {confirmando
+                ? <><Loader2 size={13} className="mr-1.5 animate-spin" /> Confirmando...</>
+                : <><Check size={13} className="mr-1.5" /> Confirmar correção</>
+              }
+            </Button>
+          )}
+
+          {jaConfirmado && ocr.tentativaId && (
+            <Button size="sm" variant="outline" onClick={() => navigate(`/tentativas/${ocr.tentativaId}`)}>
+              Ver resultado
             </Button>
           )}
         </div>
+      </div>
+
+      {/* ── Conteúdo ─────────────────────────────────────────────────────────── */}
+      <div className="flex-1 px-4 py-5 md:px-6 space-y-5">
+
+        {/* Info alert */}
+        {!jaConfirmado && (
+          <div className="flex items-start gap-3 rounded-lg px-4 py-3" style={{ background: '#EFF6FF' }}>
+            <Info size={15} className="shrink-0 mt-0.5 text-blue-400" />
+            <p className="text-[13px] text-blue-700 leading-snug">
+              Revise as respostas detectadas antes de confirmar.
+              <span className="text-blue-500"> O OCR pode conter erros — você está no controle.</span>
+            </p>
+          </div>
+        )}
+
+        {/* Erro */}
+        {erro && (
+          <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+            <AlertTriangle size={15} className="shrink-0 mt-0.5 text-red-400" />
+            <p className="text-[13px] text-red-700">{erro}</p>
+          </div>
+        )}
+
+        {/* OCR erro */}
+        {ocr.status === 'erro' && (
+          <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+            <AlertTriangle size={15} className="shrink-0 mt-0.5 text-red-400" />
+            <div className="flex-1 text-[13px] text-red-700">
+              <p>{ocr.erroMensagem}</p>
+              <button
+                onClick={handleReprocessar}
+                disabled={reprocessando}
+                className="mt-1 font-medium underline disabled:opacity-50"
+              >
+                {reprocessando ? 'Reprocessando...' : 'Tentar novamente'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Alerta vazios */}
+        {mostrarAlertaVazios && (
+          <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+            <AlertTriangle size={15} className="shrink-0 mt-0.5 text-amber-500" />
+            <div className="flex-1 text-[13px] text-amber-700">
+              <p className="font-semibold">Existem questões sem resposta.</p>
+              <p className="mt-0.5">Questões em branco serão marcadas como erradas. Deseja confirmar mesmo assim?</p>
+              <div className="mt-2 flex gap-2">
+                <Button size="sm" variant="outline"
+                  className="border-amber-300 text-amber-700 hover:bg-amber-100"
+                  onClick={() => setMostrarAlertaVazios(false)}>
+                  Continuar revisando
+                </Button>
+                <Button size="sm"
+                  style={{ background: '#D97706', color: '#fff' }}
+                  onClick={() => { setMostrarAlertaVazios(false); handleConfirmar(true) }}
+                  disabled={confirmando}>
+                  {confirmando ? <Loader2 size={12} className="mr-1.5 animate-spin" /> : null}
+                  Confirmar assim mesmo
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Cabeçalho da seção + stats + progresso */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[14px] font-semibold text-[#111827]">
+                {total} questão{total !== 1 ? 'ões' : ''} para revisar
+              </p>
+              <p className="text-[12px] text-[#6B7280] mt-0.5">
+                {detectadas} detectada{detectadas !== 1 ? 's' : ''} pelo OCR
+                {questoesDisc.length > 0 && ` · ${questoesDisc.length} discursiva${questoesDisc.length !== 1 ? 's' : ''} ignorada${questoesDisc.length !== 1 ? 's' : ''}`}
+              </p>
+            </div>
+            <button
+              onClick={handleReprocessar}
+              disabled={reprocessando || jaConfirmado}
+              className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-medium text-slate-500 hover:bg-slate-100 disabled:opacity-40 transition-colors"
+            >
+              {reprocessando
+                ? <Loader2 size={12} className="animate-spin" />
+                : <RefreshCw size={12} />
+              }
+              Reprocessar
+            </button>
+          </div>
+
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[12px] text-[#6B7280]">
+                {comResposta} de {total} questões com resposta
+              </span>
+              {comResposta === total && (
+                <span className="text-[11px] font-semibold text-emerald-600">Todas revisadas ✓</span>
+              )}
+            </div>
+            <ProgressBar atual={comResposta} total={total} />
+          </div>
+        </div>
+
+        {/* Legenda de status */}
+        <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+          {[
+            { status: 'detectado' as CardStatus, label: 'Detectado pelo OCR' },
+            { status: 'alterado' as CardStatus, label: 'Alterado' },
+            { status: 'manual' as CardStatus, label: 'Preenchido manualmente' },
+            { status: 'vazio' as CardStatus, label: 'Sem resposta' },
+          ].map((item) => (
+            <div key={item.status} className="flex items-center gap-1.5">
+              <StatusIcon status={item.status} />
+              <span className="text-[11px] text-[#6B7280]">{item.label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Dica de teclado */}
+        {!jaConfirmado && (
+          <div className="rounded-md bg-slate-50 px-3 py-2 text-[11px] text-slate-400">
+            <span className="font-semibold text-slate-500">Dica:</span>{' '}
+            Clique em uma questão e pressione <kbd className="rounded border border-slate-200 bg-white px-1 font-mono">A</kbd>–
+            <kbd className="rounded border border-slate-200 bg-white px-1 font-mono">E</kbd> para selecionar.
+            <kbd className="ml-1 rounded border border-slate-200 bg-white px-1 font-mono">Tab</kbd> ou
+            <kbd className="ml-1 rounded border border-slate-200 bg-white px-1 font-mono">Enter</kbd> para avançar.
+          </div>
+        )}
+
+        {/* Grid de questões */}
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+          {questoes.map((q) => {
+            const estado = estados.get(q.id)
+            if (!estado) return null
+            return (
+              <QuestaoCard
+                key={q.id}
+                questao={q}
+                deteccao={detMap.get(q.id)}
+                estado={estado}
+                onChange={(patch) => !jaConfirmado && handleChange(q.id, patch)}
+                onAdvance={() => advanceTo(q.id)}
+                disabled={jaConfirmado}
+                cardRef={(el) => {
+                  if (el) cardRefs.current.set(q.id, el)
+                  else cardRefs.current.delete(q.id)
+                }}
+              />
+            )
+          })}
+        </div>
+
+        {/* Texto OCR bruto */}
+        {ocr.textoOcr && (
+          <div className="rounded-lg border border-[#E5E7EB] overflow-hidden">
+            <button
+              className="flex w-full items-center gap-2 px-4 py-3 text-[12px] font-medium text-[#6B7280] hover:bg-slate-50 transition-colors"
+              onClick={() => setMostrarTextoOcr((v) => !v)}
+            >
+              <Eye size={12} />
+              {mostrarTextoOcr ? 'Ocultar' : 'Ver'} texto extraído pelo OCR
+            </button>
+            {mostrarTextoOcr && (
+              <pre className="border-t border-[#E5E7EB] px-4 py-3 text-[11px] text-[#6B7280] whitespace-pre-wrap leading-relaxed font-mono bg-slate-50">
+                {ocr.textoOcr}
+              </pre>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Footer fixo ──────────────────────────────────────────────────────── */}
+      <div
+        className="sticky bottom-0 z-10 flex items-center justify-between gap-3 bg-white px-4 py-4 md:px-6"
+        style={{ borderTop: '1px solid #E5E7EB' }}
+      >
+        <Button
+          variant="ghost"
+          onClick={() => navigate(-1)}
+          disabled={confirmando}
+        >
+          Cancelar
+        </Button>
+
+        {jaConfirmado ? (
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={16} className="text-emerald-500" />
+            <span className="text-[13px] font-semibold text-emerald-700">Correção confirmada</span>
+            {ocr.tentativaId && (
+              <Button size="sm" className="ml-2" onClick={() => navigate(`/tentativas/${ocr.tentativaId}`)}>
+                Ver resultado
+              </Button>
+            )}
+          </div>
+        ) : (
+          <Button
+            onClick={() => handleConfirmar()}
+            disabled={confirmando || reprocessando}
+            className="min-w-[160px]"
+          >
+            {confirmando
+              ? <><Loader2 size={14} className="mr-2 animate-spin" /> Confirmando...</>
+              : <><Check size={14} className="mr-2" /> Confirmar correção</>
+            }
+          </Button>
+        )}
+      </div>
+
+      {/* ── Modal de arquivo ──────────────────────────────────────────────────── */}
+      {verArquivo && (
+        <ArquivoModal
+          base64={ocr.arquivoBase64}
+          tipo={ocr.tipoArquivo}
+          onClose={() => setVerArquivo(false)}
+        />
       )}
     </div>
   )
