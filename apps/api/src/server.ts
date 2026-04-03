@@ -32,8 +32,10 @@ async function main() {
   })
 
   // Plugins
+  const rawOrigin = process.env['CORS_ORIGIN'] ?? 'http://localhost:5173'
+  const allowedOrigins = rawOrigin.split(',').map((o) => o.trim())
   await app.register(cors, {
-    origin: process.env['CORS_ORIGIN'] ?? 'http://localhost:5173',
+    origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
   })
 
   await app.register(jwt, {
