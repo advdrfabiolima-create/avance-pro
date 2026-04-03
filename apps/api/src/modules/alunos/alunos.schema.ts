@@ -16,6 +16,16 @@ export const criarAlunoSchema = z.object({
     .min(1),
 })
 
+const enderecoSchema = {
+  cep: z.string().regex(/^\d{5}-\d{3}$/, 'CEP inválido').optional(),
+  logradouro: z.string().max(200).optional(),
+  numero: z.string().max(20).optional(),
+  complemento: z.string().max(100).optional(),
+  bairro: z.string().max(100).optional(),
+  cidade: z.string().max(100).optional(),
+  estado: z.string().length(2).optional(),
+}
+
 export const atualizarAlunoSchema = z.object({
   nome: z.string().min(2).max(100).optional(),
   dataNascimento: z
@@ -25,6 +35,7 @@ export const atualizarAlunoSchema = z.object({
   escola: z.string().max(150).optional(),
   serieEscolar: z.string().max(50).optional(),
   foto: z.string().nullable().optional(),
+  ...enderecoSchema,
 })
 
 export const filtrosAlunoSchema = z.object({

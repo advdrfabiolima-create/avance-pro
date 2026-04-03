@@ -162,12 +162,12 @@ export class AlunoService {
         else tendencia = 'estavel'
       }
 
-      const matriculaAtiva = aluno.matriculas[0] ?? null
+      const matriculasAtivas = aluno.matriculas
 
       const { sessoesAluno, matriculas, ...rest } = aluno
       return {
         ...rest,
-        matriculaAtiva,
+        matriculasAtivas,
         ultimaSessao: ultimaSessaoData,
         diasSemSessao,
         statusOperacional,
@@ -289,6 +289,13 @@ export class AlunoService {
           ...(data.escola !== undefined && { escola: data.escola }),
           ...(data.serieEscolar !== undefined && { serieEscolar: data.serieEscolar }),
           ...(data.foto !== undefined && { foto: data.foto }),
+          ...(data.cep !== undefined && { cep: data.cep }),
+          ...(data.logradouro !== undefined && { logradouro: data.logradouro }),
+          ...(data.numero !== undefined && { numero: data.numero }),
+          ...(data.complemento !== undefined && { complemento: data.complemento }),
+          ...(data.bairro !== undefined && { bairro: data.bairro }),
+          ...(data.cidade !== undefined && { cidade: data.cidade }),
+          ...(data.estado !== undefined && { estado: data.estado }),
         },
         include: {
           responsaveis: {

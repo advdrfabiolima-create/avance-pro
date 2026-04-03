@@ -34,6 +34,13 @@ export interface AlunoUpdate {
   escola?: string
   serieEscolar?: string
   ativo?: boolean
+  cep?: string
+  logradouro?: string
+  numero?: string
+  complemento?: string
+  bairro?: string
+  cidade?: string
+  estado?: string
 }
 
 export interface AlunoFiltros {

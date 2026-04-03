@@ -20,6 +20,13 @@ interface FormFields {
   dataNascimento: string
   escola: string
   serieEscolar: string
+  cep: string
+  logradouro: string
+  numero: string
+  complemento: string
+  bairro: string
+  cidade: string
+  estado: string
 }
 
 const EMPTY: FormFields = {
@@ -27,6 +34,13 @@ const EMPTY: FormFields = {
   dataNascimento: '',
   escola: '',
   serieEscolar: '',
+  cep: '',
+  logradouro: '',
+  numero: '',
+  complemento: '',
+  bairro: '',
+  cidade: '',
+  estado: '',
 }
 
 interface ResponsavelOpcao {
@@ -56,6 +70,25 @@ function maskTelefone(value: string): string {
   if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`
   if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
+}
+
+function maskCep(value: string): string {
+  const d = value.replace(/\D/g, '').slice(0, 8)
+  if (d.length <= 5) return d
+  return `${d.slice(0, 5)}-${d.slice(5)}`
+}
+
+async function buscarCep(cep: string): Promise<{ logradouro: string; bairro: string; localidade: string; uf: string } | null> {
+  const digits = cep.replace(/\D/g, '')
+  if (digits.length !== 8) return null
+  try {
+    const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`)
+    const data = await res.json()
+    if (data.erro) return null
+    return data
+  } catch {
+    return null
+  }
 }
 
 // ─── Formulário inline de novo responsável ────────────────────────────────────
@@ -163,6 +196,7 @@ export default function AlunoFormModal({ id, onClose, onSaved }: Props) {
   const [loadingInit, setLoadingInit] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [novoRespParaVinculo, setNovoRespParaVinculo] = useState<number | null>(null)
+  const [buscandoCep, setBuscandoCep] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -184,6 +218,13 @@ export default function AlunoFormModal({ id, onClose, onSaved }: Props) {
             dataNascimento: dn,
             escola: aluno.escola ?? '',
             serieEscolar: aluno.serieEscolar ?? '',
+            cep: aluno.cep ?? '',
+            logradouro: aluno.logradouro ?? '',
+            numero: aluno.numero ?? '',
+            complemento: aluno.complemento ?? '',
+            bairro: aluno.bairro ?? '',
+            cidade: aluno.cidade ?? '',
+            estado: aluno.estado ?? '',
           })
           setFoto(aluno.foto ?? null)
         }
@@ -285,6 +326,13 @@ export default function AlunoFormModal({ id, onClose, onSaved }: Props) {
           escola: fields.escola.trim() || undefined,
           serieEscolar: fields.serieEscolar.trim() || undefined,
           ...(fotoAlterada && { foto }),
+          cep: fields.cep.trim() || undefined,
+          logradouro: fields.logradouro.trim() || undefined,
+          numero: fields.numero.trim() || undefined,
+          complemento: fields.complemento.trim() || undefined,
+          bairro: fields.bairro.trim() || undefined,
+          cidade: fields.cidade.trim() || undefined,
+          estado: fields.estado.trim() || undefined,
         }
         await alunosService.atualizar(id!, data)
       } else {
@@ -413,6 +461,111 @@ export default function AlunoFormModal({ id, onClose, onSaved }: Props) {
                     onChange={(e) => set('escola', e.target.value)}
                     placeholder="Nome da escola"
                   />
+                </div>
+              </div>
+
+              {/* Endereço */}
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-foreground">Endereço</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cep">CEP</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="cep"
+                        value={fields.cep}
+                        onChange={(e) => set('cep', maskCep(e.target.value))}
+                        placeholder="00000-000"
+                        maxLength={9}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={buscandoCep || fields.cep.replace(/\D/g, '').length !== 8}
+                        onClick={async () => {
+                          setBuscandoCep(true)
+                          const dados = await buscarCep(fields.cep)
+                          setBuscandoCep(false)
+                          if (dados) {
+                            setFields((f) => ({
+                              ...f,
+                              logradouro: dados.logradouro || f.logradouro,
+                              bairro: dados.bairro || f.bairro,
+                              cidade: dados.localidade || f.cidade,
+                              estado: dados.uf || f.estado,
+                            }))
+                          } else {
+                            setError('CEP não encontrado')
+                          }
+                        }}
+                      >
+                        {buscandoCep ? '...' : 'Buscar'}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="estado">Estado (UF)</Label>
+                    <Input
+                      id="estado"
+                      value={fields.estado}
+                      onChange={(e) => set('estado', e.target.value.toUpperCase().slice(0, 2))}
+                      placeholder="SP"
+                      maxLength={2}
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <Label htmlFor="logradouro">Logradouro</Label>
+                    <Input
+                      id="logradouro"
+                      value={fields.logradouro}
+                      onChange={(e) => set('logradouro', e.target.value)}
+                      placeholder="Rua, Avenida, etc."
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="numero">Número</Label>
+                    <Input
+                      id="numero"
+                      value={fields.numero}
+                      onChange={(e) => set('numero', e.target.value)}
+                      placeholder="123"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="complemento">Complemento</Label>
+                    <Input
+                      id="complemento"
+                      value={fields.complemento}
+                      onChange={(e) => set('complemento', e.target.value)}
+                      placeholder="Apto, Bloco..."
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="bairro">Bairro</Label>
+                    <Input
+                      id="bairro"
+                      value={fields.bairro}
+                      onChange={(e) => set('bairro', e.target.value)}
+                      placeholder="Bairro"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cidade">Cidade</Label>
+                    <Input
+                      id="cidade"
+                      value={fields.cidade}
+                      onChange={(e) => set('cidade', e.target.value)}
+                      placeholder="Cidade"
+                    />
+                  </div>
                 </div>
               </div>
 

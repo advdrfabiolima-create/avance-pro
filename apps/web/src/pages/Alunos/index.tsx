@@ -22,7 +22,7 @@ interface AlunoLista {
   dataNascimento: string
   foto?: string | null
   ativo: boolean
-  matriculaAtiva?: MatriculaAtiva | null
+  matriculasAtivas?: MatriculaAtiva[]
   ultimaSessao?: string | null
   diasSemSessao?: number | null
   statusOperacional?: StatusOperacional
@@ -224,13 +224,17 @@ export default function AlunosPage() {
                         </div>
                       </td>
                       <td className="hidden px-4 py-3 lg:table-cell">
-                        {aluno.matriculaAtiva ? (
-                          <div>
-                            <p className="font-medium">{aluno.matriculaAtiva.materia.nome}</p>
-                            <p className="text-xs text-muted-foreground">
-                              <span className="font-semibold text-foreground">{aluno.matriculaAtiva.nivelAtual.codigo}</span>
-                              {' · '}{aluno.matriculaAtiva.nivelAtual.descricao}
-                            </p>
+                        {aluno.matriculasAtivas && aluno.matriculasAtivas.length > 0 ? (
+                          <div className="space-y-1">
+                            {aluno.matriculasAtivas.map((m) => (
+                              <div key={m.materia.id}>
+                                <p className="font-medium leading-tight">{m.materia.nome}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  <span className="font-semibold text-foreground">{m.nivelAtual.codigo}</span>
+                                  {' · '}{m.nivelAtual.descricao}
+                                </p>
+                              </div>
+                            ))}
                           </div>
                         ) : (
                           <span className="text-muted-foreground">—</span>

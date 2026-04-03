@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { MessageSquare, Plus, X, Trash2 } from 'lucide-react'
+import { MessageSquare, Plus, X, Trash2, Pencil } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Label } from '../../components/ui/Label'
@@ -320,8 +320,8 @@ export default function ReunioesPage() {
                     <td className="hidden px-4 py-3 text-muted-foreground lg:table-cell">{r.usuario.nome}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => { setModalId(r.id); setModalOpen(true) }}>
-                          <Plus size={14} className="rotate-45" />
+                        <Button variant="ghost" size="icon" title="Editar reunião" onClick={() => { setModalId(r.id); setModalOpen(true) }}>
+                          <Pencil size={14} />
                         </Button>
                         <Button variant="ghost" size="icon" onClick={() => handleExcluir(r.id)} className="text-destructive hover:text-destructive">
                           <Trash2 size={14} />

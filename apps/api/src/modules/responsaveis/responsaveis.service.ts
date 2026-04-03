@@ -16,9 +16,10 @@ function erroNegocio(statusCode: number, message: string): ErroNegocio {
 
 export class ResponsavelService {
   async criar(data: CriarResponsavelInput) {
-    const cpfEmUso = await prisma.responsavel.findUnique({ where: { cpf: data.cpf } })
-    if (cpfEmUso) {
-      throw erroNegocio(409, 'CPF já cadastrado')
+    // Se o CPF já está cadastrado, retorna o responsável existente (um responsável pode ter vários filhos)
+    if (data.cpf) {
+      const existente = await prisma.responsavel.findUnique({ where: { cpf: data.cpf } })
+      if (existente) return existente
     }
 
     try {
@@ -26,7 +27,10 @@ export class ResponsavelService {
       return responsavel
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-        throw erroNegocio(409, 'CPF já cadastrado')
+        // Race condition: CPF inserido entre a verificação e o create
+        const existente = await prisma.responsavel.findUnique({ where: { cpf: data.cpf } })
+        if (existente) return existente
+        throw erroNegocio(409, 'Responsável já cadastrado com este CPF')
       }
       throw err
     }
