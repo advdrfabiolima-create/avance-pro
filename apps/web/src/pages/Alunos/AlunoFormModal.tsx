@@ -183,14 +183,26 @@ function NovoResponsavelInline({ onCriado, onCancelar }: NovoResponsavelInlinePr
 
 // ─── Modal principal ──────────────────────────────────────────────────────────
 
+interface VinculoExistente {
+  responsavelId: string
+  nome: string
+  parentesco: string
+  principal: boolean
+}
+
 export default function AlunoFormModal({ id, onClose, onSaved }: Props) {
   const isEdit = id !== null && id !== ''
   const [fields, setFields] = useState<FormFields>(EMPTY)
   const [foto, setFoto] = useState<string | null>(null)
   const [fotoAlterada, setFotoAlterada] = useState(false)
+  // Criação: vínculos novos
   const [vinculos, setVinculos] = useState<VinculoForm[]>([
     { responsavelId: '', parentesco: '', principal: true },
   ])
+  // Edição: vínculos existentes e operações pendentes
+  const [vinculosExistentes, setVinculosExistentes] = useState<VinculoExistente[]>([])
+  const [vinculosParaRemover, setVinculosParaRemover] = useState<Set<string>>(new Set())
+  const [novoVinculoEdit, setNovoVinculoEdit] = useState<{ responsavelId: string; parentesco: string } | null>(null)
   const [responsaveisOpcoes, setResponsaveisOpcoes] = useState<ResponsavelOpcao[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingInit, setLoadingInit] = useState(true)
@@ -227,6 +239,13 @@ export default function AlunoFormModal({ id, onClose, onSaved }: Props) {
             estado: aluno.estado ?? '',
           })
           setFoto(aluno.foto ?? null)
+          const resps: VinculoExistente[] = (aluno.responsaveis ?? []).map((ra: any) => ({
+            responsavelId: ra.responsavel?.id ?? ra.responsavelId,
+            nome: ra.responsavel?.nome ?? '—',
+            parentesco: ra.parentesco,
+            principal: ra.principal,
+          }))
+          setVinculosExistentes(resps)
         }
       } catch {
         setError('Erro ao carregar dados')
@@ -335,6 +354,21 @@ export default function AlunoFormModal({ id, onClose, onSaved }: Props) {
           estado: fields.estado.trim() || undefined,
         }
         await alunosService.atualizar(id!, data)
+
+        // Remover vínculos marcados
+        for (const respId of vinculosParaRemover) {
+          await responsaveisService.desvincularAluno(respId, id!)
+        }
+
+        // Adicionar novo vínculo se preenchido
+        if (novoVinculoEdit?.responsavelId && novoVinculoEdit.parentesco.trim()) {
+          const restantes = vinculosExistentes.filter((v) => !vinculosParaRemover.has(v.responsavelId))
+          await responsaveisService.vincularAluno(novoVinculoEdit.responsavelId, {
+            alunoId: id!,
+            parentesco: novoVinculoEdit.parentesco.trim(),
+            principal: restantes.length === 0,
+          })
+        }
       } else {
         const data: AlunoCreate & { responsaveis: VinculoForm[] } = {
           nome: fields.nome.trim(),
@@ -568,6 +602,80 @@ export default function AlunoFormModal({ id, onClose, onSaved }: Props) {
                   </div>
                 </div>
               </div>
+
+              {/* Responsáveis — modo edição */}
+              {isEdit && (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-foreground">Responsáveis</p>
+
+                  {/* Vínculos existentes */}
+                  {vinculosExistentes.length === 0 && vinculosParaRemover.size === 0 && (
+                    <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                      Este aluno não possui responsável vinculado.
+                    </p>
+                  )}
+                  {vinculosExistentes
+                    .filter((v) => !vinculosParaRemover.has(v.responsavelId))
+                    .map((v) => (
+                      <div key={v.responsavelId} className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm">
+                        <div>
+                          <span className="font-medium">{v.nome}</span>
+                          <span className="text-muted-foreground ml-2 text-xs">({v.parentesco})</span>
+                          {v.principal && <span className="ml-2 text-xs text-primary">principal</span>}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setVinculosParaRemover((s) => new Set([...s, v.responsavelId]))}
+                          className="text-xs text-destructive hover:underline"
+                        >
+                          Remover
+                        </button>
+                      </div>
+                    ))}
+
+                  {/* Adicionar novo vínculo */}
+                  {novoVinculoEdit === null ? (
+                    <button
+                      type="button"
+                      onClick={() => setNovoVinculoEdit({ responsavelId: '', parentesco: '' })}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      + Adicionar responsável
+                    </button>
+                  ) : (
+                    <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+                      <p className="text-xs font-semibold text-primary">Vincular responsável</p>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Responsável</Label>
+                          <select
+                            className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            value={novoVinculoEdit.responsavelId}
+                            onChange={(e) => setNovoVinculoEdit((v) => v && ({ ...v, responsavelId: e.target.value }))}
+                          >
+                            <option value="">Selecione...</option>
+                            {responsaveisOpcoes
+                              .filter((r) => !vinculosExistentes.some((v) => v.responsavelId === r.id && !vinculosParaRemover.has(v.responsavelId)))
+                              .map((r) => <option key={r.id} value={r.id}>{r.nome}</option>)}
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Parentesco</Label>
+                          <Input
+                            value={novoVinculoEdit.parentesco}
+                            onChange={(e) => setNovoVinculoEdit((v) => v && ({ ...v, parentesco: e.target.value }))}
+                            placeholder="Ex: mãe, pai, avó"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={() => setNovoVinculoEdit(null)}>Cancelar</Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Foto */}
               <div className="space-y-2">

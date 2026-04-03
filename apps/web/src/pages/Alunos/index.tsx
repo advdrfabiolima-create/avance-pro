@@ -128,8 +128,7 @@ function ModalVincularResponsavel({ aluno, onClose, onSaved }: ModalVincularResp
               <Input value={parentesco} onChange={(e) => setParentesco(e.target.value)} placeholder="Ex: mãe, pai, avó" />
             </div>
             <div className="flex gap-2 pt-1">
-              <Button type="button" variant="outline" className="flex-1" onClick={onClose} disabled={loading}>Pular por agora</Button>
-              <Button type="submit" className="flex-1" disabled={loading}>{loading ? 'Vinculando...' : 'Vincular'}</Button>
+              <Button type="submit" className="w-full" disabled={loading}>{loading ? 'Vinculando...' : 'Vincular Responsável'}</Button>
             </div>
           </form>
         )}
