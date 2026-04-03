@@ -454,6 +454,7 @@ export default function DashboardPage() {
             icon={<Users className="h-5 w-5" />}
             iconBg="bg-blue-50"
             iconColor="text-blue-600"
+            sub={totalAtivos > 0 ? 'Matriculados e ativos' : 'Nenhum aluno ativo'}
             to="/alunos"
           />
           <StatCard
