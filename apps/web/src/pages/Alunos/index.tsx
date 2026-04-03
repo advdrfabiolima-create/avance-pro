@@ -3,12 +3,15 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { Plus, Eye, Pencil, Search, GraduationCap, TrendingUp, TrendingDown, Minus, X, Trash2, RotateCcw } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
+import { Label } from '../../components/ui/Label'
+import { Alert, AlertDescription } from '../../components/ui/Alert'
 import PageHeader from '../../components/shared/PageHeader'
 import EmptyState from '../../components/shared/EmptyState'
 import { StatusBadge, StatusDot } from '../../components/shared/StatusBadge'
 import type { StatusOperacional } from '../../components/shared/StatusBadge'
 import AlunoAvatar from '../../components/shared/AlunoAvatar'
 import { alunosService } from '../../services/alunos.service'
+import { responsaveisService } from '../../services/responsaveis.service'
 import AlunoFormModal from './AlunoFormModal'
 
 interface MatriculaAtiva {
@@ -56,6 +59,85 @@ function formatarUltimaSessao(diasSemSessao: number | null | undefined): string 
   return `${diasSemSessao}d atrás`
 }
 
+// ─── Modal vincular responsável ao reativar ───────────────────────────────────
+
+interface ModalVincularResponsavelProps {
+  aluno: AlunoLista
+  onClose: () => void
+  onSaved: () => void
+}
+
+function ModalVincularResponsavel({ aluno, onClose, onSaved }: ModalVincularResponsavelProps) {
+  const [responsaveis, setResponsaveis] = useState<{ id: string; nome: string }[]>([])
+  const [responsavelId, setResponsavelId] = useState('')
+  const [parentesco, setParentesco] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [loadingInit, setLoadingInit] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    responsaveisService.listar({ pageSize: 100 }).then((res) => {
+      const lista = (res.data as any)?.data?.data ?? []
+      setResponsaveis(lista.map((r: any) => ({ id: r.id, nome: r.nome })))
+    }).catch(() => setError('Erro ao carregar responsáveis.')).finally(() => setLoadingInit(false))
+  }, [])
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!responsavelId || !parentesco.trim()) { setError('Selecione o responsável e informe o parentesco.'); return }
+    setLoading(true); setError(null)
+    try {
+      await responsaveisService.vincularAluno(responsavelId, { alunoId: aluno.id, parentesco: parentesco.trim(), principal: true })
+      onSaved()
+    } catch (err: any) {
+      setError(err?.response?.data?.error ?? 'Erro ao vincular responsável.')
+    } finally { setLoading(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-md rounded-xl bg-card shadow-xl">
+        <div className="flex items-center justify-between border-b px-5 py-4">
+          <div>
+            <h2 className="font-semibold text-foreground">Vincular Responsável</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Aluno reativado: <strong>{aluno.nome}</strong></p>
+          </div>
+          <button onClick={onClose} className="rounded-md p-1 text-muted-foreground hover:bg-accent"><X size={16} /></button>
+        </div>
+        {loadingInit ? (
+          <div className="flex items-center justify-center py-10">
+            <span className="text-sm text-muted-foreground">Carregando...</span>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4 p-5">
+            <p className="text-sm text-muted-foreground">O aluno foi reativado mas está sem responsável. Vincule um responsável para continuar.</p>
+            {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+            <div className="space-y-1.5">
+              <Label>Responsável *</Label>
+              <select
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                value={responsavelId}
+                onChange={(e) => setResponsavelId(e.target.value)}
+              >
+                <option value="">Selecione...</option>
+                {responsaveis.map((r) => <option key={r.id} value={r.id}>{r.nome}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Parentesco *</Label>
+              <Input value={parentesco} onChange={(e) => setParentesco(e.target.value)} placeholder="Ex: mãe, pai, avó" />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button type="button" variant="outline" className="flex-1" onClick={onClose} disabled={loading}>Pular por agora</Button>
+              <Button type="submit" className="flex-1" disabled={loading}>{loading ? 'Vinculando...' : 'Vincular'}</Button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function SkeletonRow() {
   return (
     <tr className="animate-pulse">
@@ -80,6 +162,7 @@ export default function AlunosPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [modalId, setModalId] = useState<string | null | undefined>(undefined)
+  const [reativandoAluno, setReativandoAluno] = useState<AlunoLista | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const PAGE_SIZE = 15
 
@@ -148,6 +231,7 @@ export default function AlunosPage() {
     try {
       await alunosService.reativar(aluno.id)
       void fetchData(busca, page, apenasAtivos)
+      setReativandoAluno(aluno)
     } catch (err: any) {
       alert(err?.response?.data?.error ?? 'Erro ao reativar aluno.')
     }
@@ -370,6 +454,13 @@ export default function AlunosPage() {
           id={modalId}
           onClose={() => setModalId(undefined)}
           onSaved={handleSaved}
+        />
+      )}
+      {reativandoAluno && (
+        <ModalVincularResponsavel
+          aluno={reativandoAluno}
+          onClose={() => setReativandoAluno(null)}
+          onSaved={() => { setReativandoAluno(null); void fetchData(busca, page, apenasAtivos) }}
         />
       )}
     </div>
