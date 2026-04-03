@@ -12,7 +12,7 @@ import type { StatusOperacional } from '../../components/shared/StatusBadge'
 import AlunoAvatar from '../../components/shared/AlunoAvatar'
 import { alunosService } from '../../services/alunos.service'
 import { responsaveisService } from '../../services/responsaveis.service'
-import AlunoFormModal from './AlunoFormModal'
+import AlunoFormModal, { NovoResponsavelInline } from './AlunoFormModal'
 
 interface MatriculaAtiva {
   materia: { id: string; nome: string; codigo: string }
@@ -74,6 +74,7 @@ function ModalVincularResponsavel({ aluno, onClose, onSaved }: ModalVincularResp
   const [loading, setLoading] = useState(false)
   const [loadingInit, setLoadingInit] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [criandoNovo, setCriandoNovo] = useState(false)
 
   useEffect(() => {
     responsaveisService.listar({ pageSize: 100 }).then((res) => {
@@ -110,26 +111,50 @@ function ModalVincularResponsavel({ aluno, onClose, onSaved }: ModalVincularResp
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 p-5">
-            <p className="text-sm text-muted-foreground">O aluno foi reativado mas está sem responsável. Vincule um responsável para continuar.</p>
+            <p className="text-sm text-muted-foreground">O aluno foi reativado mas está sem responsável. Vincule ou cadastre um responsável.</p>
             {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+
             <div className="space-y-1.5">
-              <Label>Responsável *</Label>
-              <select
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                value={responsavelId}
-                onChange={(e) => setResponsavelId(e.target.value)}
-              >
-                <option value="">Selecione...</option>
-                {responsaveis.map((r) => <option key={r.id} value={r.id}>{r.nome}</option>)}
-              </select>
+              <div className="flex items-center justify-between">
+                <Label>Responsável *</Label>
+                {!criandoNovo && (
+                  <button type="button" onClick={() => setCriandoNovo(true)} className="flex items-center gap-1 text-xs text-primary hover:underline">
+                    <Plus size={11} /> Criar novo
+                  </button>
+                )}
+              </div>
+              {criandoNovo ? (
+                <NovoResponsavelInline
+                  onCriado={(resp) => {
+                    setResponsaveis((prev) => [...prev, resp])
+                    setResponsavelId(resp.id)
+                    setCriandoNovo(false)
+                  }}
+                  onCancelar={() => setCriandoNovo(false)}
+                />
+              ) : (
+                <select
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  value={responsavelId}
+                  onChange={(e) => setResponsavelId(e.target.value)}
+                >
+                  <option value="">Selecione...</option>
+                  {responsaveis.map((r) => <option key={r.id} value={r.id}>{r.nome}</option>)}
+                </select>
+              )}
             </div>
-            <div className="space-y-1.5">
-              <Label>Parentesco *</Label>
-              <Input value={parentesco} onChange={(e) => setParentesco(e.target.value)} placeholder="Ex: mãe, pai, avó" />
-            </div>
-            <div className="flex gap-2 pt-1">
-              <Button type="submit" className="w-full" disabled={loading}>{loading ? 'Vinculando...' : 'Vincular Responsável'}</Button>
-            </div>
+
+            {!criandoNovo && (
+              <>
+                <div className="space-y-1.5">
+                  <Label>Parentesco *</Label>
+                  <Input value={parentesco} onChange={(e) => setParentesco(e.target.value)} placeholder="Ex: mãe, pai, avó" />
+                </div>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? 'Vinculando...' : 'Vincular Responsável'}
+                </Button>
+              </>
+            )}
           </form>
         )}
       </div>

@@ -98,7 +98,7 @@ interface NovoResponsavelInlineProps {
   onCancelar: () => void
 }
 
-function NovoResponsavelInline({ onCriado, onCancelar }: NovoResponsavelInlineProps) {
+export function NovoResponsavelInline({ onCriado, onCancelar }: NovoResponsavelInlineProps) {
   const [nome, setNome] = useState('')
   const [cpf, setCpf] = useState('')
   const [email, setEmail] = useState('')
