@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Link } from 'react-router-dom'
-import { Plus, Eye, Pencil, Search, GraduationCap, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { Plus, Eye, Pencil, Search, GraduationCap, TrendingUp, TrendingDown, Minus, X } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import PageHeader from '../../components/shared/PageHeader'
@@ -69,6 +69,10 @@ function SkeletonRow() {
 }
 
 export default function AlunosPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const materiaIdFiltro = searchParams.get('materiaId') ?? undefined
+  const materiaNomeFiltro = searchParams.get('materiaNome') ?? undefined
+
   const [busca, setBusca] = useState('')
   const [apenasAtivos, setApenasAtivos] = useState(true)
   const [page, setPage] = useState(1)
@@ -86,6 +90,7 @@ export default function AlunosPage() {
       try {
         const res = await alunosService.listar({
           busca: buscaVal || undefined,
+          materiaId: materiaIdFiltro,
           ativo,
           page: pageVal,
           pageSize: PAGE_SIZE,
@@ -115,7 +120,7 @@ export default function AlunosPage() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
-  }, [busca, apenasAtivos, fetchData])
+  }, [busca, apenasAtivos, materiaIdFiltro, fetchData])
 
   useEffect(() => {
     void fetchData(busca, page, apenasAtivos)
@@ -160,6 +165,20 @@ export default function AlunosPage() {
           />
           <span className="text-sm text-muted-foreground">Apenas ativos</span>
         </label>
+        {materiaIdFiltro && (
+          <div className="flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1">
+            <span className="text-[12px] font-medium text-indigo-700">
+              Disciplina: {materiaNomeFiltro ?? materiaIdFiltro}
+            </span>
+            <button
+              onClick={() => setSearchParams({})}
+              className="text-indigo-400 hover:text-indigo-700 transition-colors"
+              title="Remover filtro"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        )}
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}

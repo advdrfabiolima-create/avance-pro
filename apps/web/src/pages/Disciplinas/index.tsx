@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { BookOpen, ChevronRight } from 'lucide-react'
+import { BookOpen, ChevronRight, Users } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import PageHeader from '../../components/shared/PageHeader'
 import EmptyState from '../../components/shared/EmptyState'
 import { Badge } from '../../components/ui/Badge'
@@ -166,11 +167,26 @@ export default function DisciplinasPage() {
                 <ChevronRight size={16} className="mt-1 opacity-40 group-hover:opacity-100 transition-opacity" />
               </div>
 
-              <div className="mt-4 flex items-center gap-3">
-                <div className="flex items-center gap-1.5">
-                  <BookOpen size={13} className="opacity-60" />
-                  <span className="text-xs font-medium">{materia.niveis?.length ?? 0} níveis</span>
+              <div className="mt-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <BookOpen size={13} className="opacity-60" />
+                    <span className="text-xs font-medium">{materia.niveis?.length ?? 0} níveis</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Users size={13} className="opacity-60" />
+                    <span className="text-xs font-medium">
+                      {(materia as any).alunosAtivos ?? 0} aluno{((materia as any).alunosAtivos ?? 0) !== 1 ? 's' : ''} ativo{((materia as any).alunosAtivos ?? 0) !== 1 ? 's' : ''}
+                    </span>
+                  </div>
                 </div>
+                <Link
+                  to={`/alunos?materiaId=${materia.id}&materiaNome=${encodeURIComponent(materia.nome)}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity underline underline-offset-2"
+                >
+                  Ver alunos
+                </Link>
               </div>
             </button>
           ))
