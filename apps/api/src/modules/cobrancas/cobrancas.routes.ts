@@ -4,6 +4,7 @@ import { cobrancaService } from './cobrancas.service'
 import { criarCobrancaSchema, atualizarCobrancaSchema, filtrosCobrancaSchema } from './cobrancas.schema'
 import { prisma } from '@kumon-advance/db'
 import { asaasGetOrCreateCustomer, asaasCriarCobranca, asaasBuscarPixQrCode } from '../../shared/asaas.service'
+import { notificacaoService } from '../notificacoes/notificacoes.service'
 
 interface ErroNegocio { statusCode: number; message: string }
 function isErroNegocio(err: unknown): err is ErroNegocio {
@@ -167,6 +168,29 @@ export async function cobrancasRoutes(app: FastifyInstance): Promise<void> {
         },
         include: { aluno: { select: { id: true, nome: true, foto: true } } },
       })
+
+      // Enviar notificação por e-mail e WhatsApp ao responsável
+      if (resp?.email && resp?.telefone) {
+        const valorFormatado = parseFloat(cobranca.valor.toString()).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+        const vencFormatado = new Date(vencimento + 'T12:00:00').toLocaleDateString('pt-BR')
+        const descricaoCobranca = cobranca.descricao ?? `Mensalidade — ${cobranca.aluno.nome}`
+
+        let mensagem = `Olá, ${resp.nome}!\n\nFoi gerada uma cobrança para o(a) aluno(a) *${cobranca.aluno.nome}*.\n\n📋 *${descricaoCobranca}*\n💰 Valor: ${valorFormatado}\n📅 Vencimento: ${vencFormatado}\n`
+
+        if (tipo === 'BOLETO' && pagamento.bankSlipUrl) {
+          mensagem += `\n🔗 Boleto: ${pagamento.bankSlipUrl}`
+        } else if (tipo === 'PIX' && pixChave) {
+          mensagem += `\n📱 Pix copia e cola:\n${pixChave}`
+        }
+
+        notificacaoService.enviar(
+          { nome: resp.nome, email: resp.email, telefone: resp.telefone },
+          `Cobrança gerada — ${descricaoCobranca}`,
+          mensagem,
+        ).catch((err: unknown) => {
+          console.error('[cobrancas] Falha ao enviar notificação:', err)
+        })
+      }
 
       return reply.send({ success: true, data: atualizada })
     } catch (err) {

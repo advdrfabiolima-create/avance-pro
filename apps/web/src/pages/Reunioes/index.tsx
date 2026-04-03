@@ -220,6 +220,7 @@ export default function ReunioesPage() {
   const [filtroTipo, setFiltroTipo] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [modalId, setModalId] = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const fetchData = useCallback(async (tipo: string, p: number) => {
     setLoading(true)
@@ -302,8 +303,12 @@ export default function ReunioesPage() {
               {loading ? (
                 Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)
               ) : result?.data?.length > 0 ? (
-                result.data.map((r: Reuniao) => (
-                  <tr key={r.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                result.data.flatMap((r: Reuniao) => [
+                  <tr
+                    key={r.id}
+                    className="border-b hover:bg-muted/30 transition-colors cursor-pointer select-none"
+                    onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
+                  >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
                         <AlunoAvatar nome={r.aluno.nome} foto={r.aluno.foto} size="sm" />
@@ -319,7 +324,7 @@ export default function ReunioesPage() {
                     </td>
                     <td className="hidden px-4 py-3 text-muted-foreground lg:table-cell">{r.usuario.nome}</td>
                     <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="icon" title="Editar reunião" onClick={() => { setModalId(r.id); setModalOpen(true) }}>
                           <Pencil size={14} />
                         </Button>
@@ -328,8 +333,16 @@ export default function ReunioesPage() {
                         </Button>
                       </div>
                     </td>
-                  </tr>
-                ))
+                  </tr>,
+                  expandedId === r.id && (
+                    <tr key={`${r.id}-desc`} className="border-b bg-muted/20">
+                      <td colSpan={6} className="px-6 py-3">
+                        <p className="text-xs font-medium text-muted-foreground mb-1">Descrição / Anotações</p>
+                        <p className="text-sm text-foreground whitespace-pre-wrap">{r.descricao || <span className="italic text-muted-foreground">Sem descrição.</span>}</p>
+                      </td>
+                    </tr>
+                  ),
+                ])
               ) : (
                 <tr>
                   <td colSpan={6} className="py-12">

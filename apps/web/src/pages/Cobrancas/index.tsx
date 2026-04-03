@@ -52,7 +52,7 @@ function SkeletonRow() {
 
 interface ModalNovaCobrancaProps {
   onClose: () => void
-  onSaved: () => void
+  onSaved: (cobranca: Cobranca) => void
 }
 
 function ModalNovaCobranca({ onClose, onSaved }: ModalNovaCobrancaProps) {
@@ -96,8 +96,9 @@ function ModalNovaCobranca({ onClose, onSaved }: ModalNovaCobrancaProps) {
     }
     setLoading(true)
     try {
-      await cobrancasService.criar({ alunoId, valor: valorNum, vencimento, descricao: descricao.trim() || undefined })
-      onSaved()
+      const res = await cobrancasService.criar({ alunoId, valor: valorNum, vencimento, descricao: descricao.trim() || undefined })
+      const criada = (res.data as any)?.data ?? res.data
+      onSaved(criada)
     } catch (err: any) {
       setError(err?.response?.data?.error ?? 'Erro ao criar cobrança.')
     } finally {
@@ -460,7 +461,11 @@ export default function CobrancasPage() {
       {modalOpen && (
         <ModalNovaCobranca
           onClose={() => setModalOpen(false)}
-          onSaved={() => { setModalOpen(false); void fetchData(filtroStatus, page) }}
+          onSaved={(cobranca) => {
+            setModalOpen(false)
+            void fetchData(filtroStatus, page)
+            if (gatewayAtivo) setEnviando(cobranca)
+          }}
         />
       )}
       {enviando && (
