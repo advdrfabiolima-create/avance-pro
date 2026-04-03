@@ -26,6 +26,8 @@ export const alunosService = {
 
   desativar: (id: string) => api.delete(`/alunos/${id}`),
 
+  reativar: (id: string) => api.put(`/alunos/${id}`, { ativo: true }),
+
   matricular: (alunoId: string, data: { materiaId: string; nivelAtualId: string; dataInicio: string }) =>
     api.post(`/alunos/${alunoId}/matriculas`, data),
 }

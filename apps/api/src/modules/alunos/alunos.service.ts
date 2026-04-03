@@ -289,6 +289,7 @@ export class AlunoService {
           ...(data.escola !== undefined && { escola: data.escola }),
           ...(data.serieEscolar !== undefined && { serieEscolar: data.serieEscolar }),
           ...(data.foto !== undefined && { foto: data.foto }),
+          ...(data.ativo !== undefined && { ativo: data.ativo }),
           ...(data.cep !== undefined && { cep: data.cep }),
           ...(data.logradouro !== undefined && { logradouro: data.logradouro }),
           ...(data.numero !== undefined && { numero: data.numero }),

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Plus, Eye, Pencil, Search, GraduationCap, TrendingUp, TrendingDown, Minus, X, Trash2 } from 'lucide-react'
+import { Plus, Eye, Pencil, Search, GraduationCap, TrendingUp, TrendingDown, Minus, X, Trash2, RotateCcw } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import PageHeader from '../../components/shared/PageHeader'
@@ -139,6 +139,16 @@ export default function AlunosPage() {
       void fetchData(busca, page, apenasAtivos)
     } catch (err: any) {
       alert(err?.response?.data?.error ?? 'Erro ao desativar aluno.')
+    }
+  }
+
+  const handleReativar = async (aluno: AlunoLista) => {
+    if (!confirm(`Reativar o aluno "${aluno.nome}"?`)) return
+    try {
+      await alunosService.reativar(aluno.id)
+      void fetchData(busca, page, apenasAtivos)
+    } catch (err: any) {
+      alert(err?.response?.data?.error ?? 'Erro ao reativar aluno.')
     }
   }
 
@@ -291,7 +301,7 @@ export default function AlunosPage() {
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          {aluno.ativo && (
+                          {aluno.ativo ? (
                             <Button
                               variant="ghost"
                               size="icon"
@@ -300,6 +310,16 @@ export default function AlunosPage() {
                               onClick={() => handleDesativar(aluno)}
                             >
                               <Trash2 className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Reativar aluno"
+                              className="text-green-600 hover:text-green-700"
+                              onClick={() => handleReativar(aluno)}
+                            >
+                              <RotateCcw className="h-4 w-4" />
                             </Button>
                           )}
                         </div>

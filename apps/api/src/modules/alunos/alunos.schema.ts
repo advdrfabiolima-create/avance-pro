@@ -35,6 +35,7 @@ export const atualizarAlunoSchema = z.object({
   escola: z.string().max(150).optional(),
   serieEscolar: z.string().max(50).optional(),
   foto: z.string().nullable().optional(),
+  ativo: z.boolean().optional(),
   ...enderecoSchema,
 })
 
