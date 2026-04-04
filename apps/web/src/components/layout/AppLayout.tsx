@@ -175,7 +175,10 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
   return (
     <div
       className="flex h-full flex-col"
-      style={{ background: '#F8FAFC', borderRight: '1px solid #E2E8F0' }}
+      style={{
+        background: 'radial-gradient(circle at top left, rgba(37, 99, 235, 0.06), transparent 40%), linear-gradient(180deg, #F8FAFF 0%, #F1F5FF 100%)',
+        borderRight: '1px solid rgba(0, 0, 0, 0.05)',
+      }}
     >
       {/* ── Logo ─────────────────────────────────────────────────────────────── */}
       <div
@@ -257,7 +260,7 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
                           }
                           style={({ isActive }) => ({
                             color: isActive ? '#1D4ED8' : '#64748B',
-                            background: isActive ? 'rgba(37, 99, 235, 0.08)' : undefined,
+                            background: isActive ? 'rgba(37, 99, 235, 0.12)' : undefined,
                             boxShadow: isActive ? 'inset 3px 0 0 0 #2563EB' : undefined,
                           })}
                         >
