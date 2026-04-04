@@ -217,16 +217,16 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
                 style={{ marginBottom: '4px' }}
               >
                 <span
-                  className="text-[14px] font-semibold uppercase tracking-[0.07em] transition-colors duration-150 group-hover/hdr:text-slate-500"
-                  style={{ color: hasActive ? '#6366F1' : '#94A3B8' }}
+                  className="text-[11px] font-semibold uppercase tracking-[0.08em] transition-colors duration-200 group-hover/hdr:text-slate-400"
+                  style={{ color: hasActive ? '#2563EB' : '#94A3B8' }}
                 >
                   {group.label}
                 </span>
                 <ChevronDown
                   size={11}
-                  className="transition-transform duration-200 group-hover/hdr:opacity-80"
+                  className="transition-transform duration-200 group-hover/hdr:opacity-70"
                   style={{
-                    color: hasActive ? '#6366F1' : '#CBD5E1',
+                    color: hasActive ? '#2563EB' : '#CBD5E1',
                     transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
                   }}
                 />
@@ -249,16 +249,16 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
                           onClick={onClose}
                           className={({ isActive }) =>
                             cn(
-                              'flex items-center gap-3 rounded-lg px-3 py-2 text-[15.5px] transition-all duration-150',
+                              'flex items-center gap-3 rounded-lg px-3 py-2 text-[15.5px] transition-all duration-200',
                               isActive
                                 ? 'font-semibold'
-                                : 'font-medium hover:bg-slate-200/50'
+                                : 'font-medium hover:bg-[#E2E8F0]'
                             )
                           }
                           style={({ isActive }) => ({
-                            color: isActive ? '#3730A3' : '#475569',
-                            background: isActive ? 'rgba(99, 102, 241, 0.08)' : undefined,
-                            boxShadow: isActive ? 'inset 3px 0 0 0 #4F46E5' : undefined,
+                            color: isActive ? '#1D4ED8' : '#64748B',
+                            background: isActive ? 'rgba(37, 99, 235, 0.08)' : undefined,
+                            boxShadow: isActive ? 'inset 3px 0 0 0 #2563EB' : undefined,
                           })}
                         >
                           <span
@@ -286,8 +286,8 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
       </div>
 
       {/* ── Footer: usuário ───────────────────────────────────────────────────── */}
-      <div className="px-3 pb-3" style={{ borderTop: '1px solid #E2E8F0' }}>
-        <div className="mt-3 flex items-center gap-2.5 rounded-xl px-2.5 py-2.5 transition-colors duration-150 hover:bg-slate-200/50 group/user cursor-default">
+      <div className="px-3 pb-3" style={{ borderTop: '1px solid #E5E7EB' }}>
+        <div className="mt-3 flex items-center gap-2.5 rounded-xl px-2.5 py-2.5 transition-colors duration-200 hover:bg-[#E2E8F0] group/user cursor-default">
           <div
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-bold uppercase"
             style={{ background: '#EEF2FF', color: '#4338CA', boxShadow: '0 0 0 2px #C7D2FE' }}
