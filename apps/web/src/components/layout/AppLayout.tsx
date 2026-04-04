@@ -174,12 +174,25 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
 
   return (
     <div
-      className="flex h-full flex-col"
+      className="relative flex h-full flex-col overflow-hidden"
       style={{
-        background: 'radial-gradient(circle at top left, rgba(37, 99, 235, 0.06), transparent 40%), linear-gradient(180deg, #F8FAFF 0%, #F1F5FF 100%)',
-        borderRight: '1px solid rgba(0, 0, 0, 0.05)',
+        background: 'radial-gradient(circle at 0% 0%, rgba(37, 99, 235, 0.10), transparent 35%), linear-gradient(180deg, #F8FAFF 0%, #EEF2FF 100%)',
+        boxShadow: 'inset -1px 0 0 rgba(37, 99, 235, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
       }}
     >
+      {/* Overlay de luz suave */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'radial-gradient(circle at top left, rgba(255,255,255,0.6), transparent 40%)',
+          pointerEvents: 'none',
+          zIndex: 0,
+        }}
+      />
+      {/* Conteúdo acima do overlay */}
+      <div className="relative z-10 flex h-full flex-col">
       {/* ── Logo ─────────────────────────────────────────────────────────────── */}
       <div
         className="flex h-[60px] shrink-0 items-center px-5"
@@ -259,8 +272,8 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
                             )
                           }
                           style={({ isActive }) => ({
-                            color: isActive ? '#1D4ED8' : '#64748B',
-                            background: isActive ? 'rgba(37, 99, 235, 0.12)' : undefined,
+                            color: isActive ? '#1E40AF' : '#64748B',
+                            background: isActive ? 'linear-gradient(90deg, rgba(37, 99, 235, 0.12), rgba(37, 99, 235, 0.06))' : undefined,
                             boxShadow: isActive ? 'inset 3px 0 0 0 #2563EB' : undefined,
                           })}
                         >
@@ -316,6 +329,7 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
           </button>
         </div>
       </div>
+      </div>{/* fim z-10 */}
     </div>
   )
 }
