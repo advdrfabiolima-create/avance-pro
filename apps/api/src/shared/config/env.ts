@@ -22,5 +22,5 @@ export const env = {
   // E-mail transacional (Brevo)
   BREVO_API_KEY: process.env['BREVO_API_KEY'] ?? '',
   BREVO_SENDER_NAME: process.env['BREVO_SENDER_NAME'] ?? 'Avance Pro',
-  BREVO_SENDER_EMAIL: process.env['BREVO_SENDER_EMAIL'] ?? 'no-reply@avanceapp.com.br',
+  BREVO_SENDER_EMAIL: process.env['BREVO_SENDER_EMAIL'] ?? '',
 } as const
