@@ -575,6 +575,24 @@ model BillingActionLog {
   @@map("billing_action_logs")
 }
 
+// ─── Automação da Régua de Cobrança ──────────────────────────────────────────
+
+model BillingAutomationRun {
+  id             String    @id @default(uuid())
+  /// running | completed | error
+  status         String    @default("running") @db.VarChar(20)
+  startedAt      DateTime  @default(now()) @map("started_at")
+  finishedAt     DateTime? @map("finished_at")
+  processedCount Int       @default(0) @map("processed_count")
+  errorCount     Int       @default(0) @map("error_count")
+  skippedCount   Int       @default(0) @map("skipped_count")
+  /// Mensagem de erro fatal ou detalhes adicionais
+  details        String?   @db.Text
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@map("billing_automation_runs")
+}
+
 // ─── Conciliação Financeira ───────────────────────────────────────────────────
 
 model BillingReconciliation {

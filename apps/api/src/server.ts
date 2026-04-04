@@ -27,6 +27,7 @@ import { ocrRoutes } from './modules/ocr/ocr.routes'
 import { conciliacaoRoutes } from './modules/conciliacao/conciliacao.routes'
 import { reguaCobrancaRoutes } from './modules/regua-cobranca/regua-cobranca.routes'
 import { bancosRoutes } from './modules/bancos/bancos.routes'
+import { startScheduler } from './modules/regua-cobranca/billing-automation.scheduler'
 
 async function main() {
   const app = Fastify({
@@ -114,6 +115,7 @@ async function main() {
     await app.listen({ port, host })
     console.log(`API rodando em http://localhost:${port}`)
     console.log(`Documentação em http://localhost:${port}/docs`)
+    startScheduler()
   } catch (err) {
     app.log.error(err)
     process.exit(1)

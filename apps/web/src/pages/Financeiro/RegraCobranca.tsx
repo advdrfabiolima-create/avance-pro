@@ -3,6 +3,7 @@ import {
   Zap, MessageSquare, Bell, Clock, AlertTriangle, CheckCircle2,
   Send, Copy, ExternalLink, ChevronDown, ChevronUp, Plus, Pencil,
   Trash2, ToggleLeft, ToggleRight, Eye, X, Calendar, History,
+  Play, RefreshCw,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
@@ -19,6 +20,7 @@ import {
   type BillingActionLog,
   type EventType,
   type Channel,
+  type AutomationStatus,
 } from '../../services/reguaCobranca.service'
 
 // ─── Formatadores ─────────────────────────────────────────────────────────────
@@ -812,12 +814,125 @@ function SecaoTemplates() {
   )
 }
 
+// ─── Card de Automação ────────────────────────────────────────────────────────
+
+function CardAutomacao({ status, onExecutar }: {
+  status: AutomationStatus | null
+  onExecutar: () => void
+}) {
+  const [executando, setExecutando] = useState(false)
+  const [feedback, setFeedback] = useState<string | null>(null)
+
+  async function handleExecutar() {
+    if (!confirm('Executar a régua de cobrança agora manualmente?')) return
+    setExecutando(true); setFeedback(null)
+    try {
+      const res = await reguaCobrancaService.runAutomation()
+      const d = (res.data as any)?.data
+      setFeedback(`Concluído — ${d?.processedCount ?? 0} ações geradas, ${d?.errorCount ?? 0} erros, ${d?.skippedCount ?? 0} puladas`)
+      onExecutar()
+    } catch (e: any) {
+      setFeedback(`Erro: ${e?.response?.data?.error ?? 'Falha na execução'}`)
+    } finally {
+      setExecutando(false)
+    }
+  }
+
+  const ultima = status?.ultimaExecucao
+  const statusBadge = ultima
+    ? ultima.status === 'completed'
+      ? { label: 'OK', cls: 'bg-green-50 text-green-700 border-green-200' }
+      : ultima.status === 'running'
+      ? { label: 'Executando', cls: 'bg-blue-50 text-blue-700 border-blue-200' }
+      : { label: 'Erro', cls: 'bg-red-50 text-red-700 border-red-200' }
+    : null
+
+  return (
+    <Card className={`border ${status?.autoEnabled ? 'border-primary/20 bg-primary/[0.02]' : ''}`}>
+      <CardContent className="pt-4 pb-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          {/* Status do agendador */}
+          <div className="flex items-center gap-3">
+            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${status?.autoEnabled ? 'bg-green-100' : 'bg-gray-100'}`}>
+              <Zap size={16} className={status?.autoEnabled ? 'text-green-600' : 'text-gray-400'} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold leading-none">
+                Automação{' '}
+                <span className={`text-xs font-normal ${status?.autoEnabled ? 'text-green-600' : 'text-muted-foreground'}`}>
+                  {status?.autoEnabled ? '● Ativa' : '○ Inativa'}
+                </span>
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {status?.autoEnabled
+                  ? `Cron: ${status.cronSchedule} (BRT) — executa automaticamente`
+                  : 'Defina BILLING_AUTO_ENABLED=true no Railway para ativar'}
+              </p>
+            </div>
+          </div>
+
+          {/* KPIs inline */}
+          <div className="flex items-center gap-6 text-center">
+            <div>
+              <p className="text-lg font-bold tabular-nums">{status?.execucoesHoje ?? '—'}</p>
+              <p className="text-[11px] text-muted-foreground">Execuções hoje</p>
+            </div>
+            <div>
+              <p className="text-lg font-bold tabular-nums">{status?.acoesAutoHoje ?? '—'}</p>
+              <p className="text-[11px] text-muted-foreground">Ações geradas</p>
+            </div>
+            {ultima && (
+              <div className="text-left">
+                <div className="flex items-center gap-1.5">
+                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${statusBadge?.cls}`}>
+                    {statusBadge?.label}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {new Date(ultima.startedAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {ultima.processedCount} processadas · {ultima.errorCount} erros
+                </p>
+              </div>
+            )}
+            {!ultima && (
+              <div>
+                <p className="text-xs text-muted-foreground">Nenhuma execução</p>
+              </div>
+            )}
+          </div>
+
+          {/* Botão executar agora */}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExecutar}
+            disabled={executando}
+            className="gap-1.5 shrink-0"
+          >
+            {executando ? <RefreshCw size={13} className="animate-spin" /> : <Play size={13} />}
+            {executando ? 'Executando...' : 'Executar agora'}
+          </Button>
+        </div>
+
+        {feedback && (
+          <p className={`mt-3 text-xs rounded-lg px-3 py-2 border ${feedback.startsWith('Erro') ? 'bg-red-50 text-red-700 border-red-200' : 'bg-green-50 text-green-700 border-green-200'}`}>
+            {feedback}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 // ─── RegraCobrancaPage ────────────────────────────────────────────────────────
 
 type Secao = 'fila' | 'regras' | 'templates' | 'historico'
 
 export default function RegraCobrancaPage() {
   const [resumo, setResumo] = useState<any>(null)
+  const [automacao, setAutomacao] = useState<AutomationStatus | null>(null)
   const [secao, setSecao] = useState<Secao>('fila')
   const [modalRegra, setModalRegra] = useState(false)
   const [editandoRegra, setEditandoRegra] = useState<BillingRule | null>(null)
@@ -830,10 +945,21 @@ export default function RegraCobrancaPage() {
     } catch { /* silencioso */ }
   }, [])
 
-  useEffect(() => { void carregarResumo() }, [carregarResumo])
+  const carregarAutomacao = useCallback(async () => {
+    try {
+      const res = await reguaCobrancaService.automationStatus()
+      setAutomacao((res.data as any)?.data ?? null)
+    } catch { /* silencioso */ }
+  }, [])
+
+  useEffect(() => {
+    void carregarResumo()
+    void carregarAutomacao()
+  }, [carregarResumo, carregarAutomacao])
 
   function handleAcaoFeita() {
     void carregarResumo()
+    void carregarAutomacao()
     setRefreshHistorico((n) => n + 1)
   }
 
@@ -893,6 +1019,9 @@ export default function RegraCobrancaPage() {
           sub="registradas"
         />
       </div>
+
+      {/* Automação */}
+      <CardAutomacao status={automacao} onExecutar={handleAcaoFeita} />
 
       {/* Sub-nav + ação */}
       <div className="flex items-center justify-between gap-3">

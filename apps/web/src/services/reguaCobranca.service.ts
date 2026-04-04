@@ -62,6 +62,25 @@ export interface ResumoRegua {
   acoesHoje: number
 }
 
+export interface AutomationRun {
+  id: string
+  status: 'running' | 'completed' | 'error'
+  startedAt: string
+  finishedAt: string | null
+  processedCount: number
+  errorCount: number
+  skippedCount: number
+  details: string | null
+}
+
+export interface AutomationStatus {
+  autoEnabled: boolean
+  cronSchedule: string
+  ultimaExecucao: AutomationRun | null
+  execucoesHoje: number
+  acoesAutoHoje: number
+}
+
 export const reguaCobrancaService = {
   resumo: () =>
     api.get<{ success: boolean; data: ResumoRegua }>('/regua-cobranca/resumo'),
@@ -106,6 +125,17 @@ export const reguaCobrancaService = {
 
   historicoPorCobranca: (cobrancaId: string) =>
     api.get<{ success: boolean; data: BillingActionLog[] }>(`/regua-cobranca/historico/${cobrancaId}`),
+
+  automationStatus: () =>
+    api.get<{ success: boolean; data: AutomationStatus }>('/regua-cobranca/automation-status'),
+
+  automationRuns: () =>
+    api.get<{ success: boolean; data: AutomationRun[] }>('/regua-cobranca/automation-runs'),
+
+  runAutomation: () =>
+    api.post<{ success: boolean; data: { processedCount: number; errorCount: number; skippedCount: number; runId: string } }>(
+      '/regua-cobranca/run-automation',
+    ),
 }
 
 // ── Utilitário WhatsApp assistido ──────────────────────────────────────────────

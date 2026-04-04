@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { autenticar, apenasAdmin } from '../../shared/middlewares/auth'
 import { reguaCobrancaService } from './regua-cobranca.service'
+import { runBillingAutomation } from './billing-automation.scheduler'
 
 interface ErroNegocio { statusCode: number; message: string }
 function isErroNegocio(e: unknown): e is ErroNegocio {
@@ -138,6 +139,37 @@ export async function reguaCobrancaRoutes(app: FastifyInstance): Promise<void> {
     } catch (e) {
       if (isErroNegocio(e)) return reply.status(e.statusCode).send({ success: false, error: e.message })
       return reply.status(500).send({ success: false, error: 'Erro ao buscar histórico da cobrança' })
+    }
+  })
+
+  // GET /automation-status — status da automação + KPIs
+  app.get('/automation-status', { preHandler: autenticar }, async (_req, reply) => {
+    try {
+      return reply.send({ success: true, data: await reguaCobrancaService.automationStatus() })
+    } catch (e) {
+      if (isErroNegocio(e)) return reply.status(e.statusCode).send({ success: false, error: e.message })
+      return reply.status(500).send({ success: false, error: 'Erro ao buscar status da automação' })
+    }
+  })
+
+  // GET /automation-runs — últimas execuções
+  app.get('/automation-runs', { preHandler: autenticar }, async (_req, reply) => {
+    try {
+      return reply.send({ success: true, data: await reguaCobrancaService.listAutomationRuns() })
+    } catch (e) {
+      if (isErroNegocio(e)) return reply.status(e.statusCode).send({ success: false, error: e.message })
+      return reply.status(500).send({ success: false, error: 'Erro ao listar execuções' })
+    }
+  })
+
+  // POST /run-automation — execução manual sob demanda (admin)
+  app.post('/run-automation', { preHandler: apenasAdmin }, async (_req, reply) => {
+    try {
+      const result = await runBillingAutomation()
+      return reply.send({ success: true, data: result })
+    } catch (e) {
+      if (isErroNegocio(e)) return reply.status(e.statusCode).send({ success: false, error: e.message })
+      return reply.status(500).send({ success: false, error: 'Erro ao executar automação' })
     }
   })
 }

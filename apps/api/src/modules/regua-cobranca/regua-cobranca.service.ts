@@ -279,6 +279,46 @@ export class ReguaCobrancaService {
     })
   }
 
+  // ── Status da automação ──────────────────────────────────────────────────────
+
+  async automationStatus() {
+    const hoje = new Date()
+    const hojeStr = toDateStr(hoje)
+    const amanha = addDias(hoje, 1)
+    const amanhaStr = toDateStr(amanha)
+
+    const [ultimaExecucao, execucoesHoje, acoesAutoHoje] = await Promise.all([
+      prisma.billingAutomationRun.findFirst({ orderBy: { startedAt: 'desc' } }),
+      prisma.billingAutomationRun.count({
+        where: { startedAt: { gte: new Date(`${hojeStr}T00:00:00.000Z`) } },
+      }),
+      prisma.billingActionLog.count({
+        where: {
+          triggeredBy: 'scheduler',
+          triggeredAt: {
+            gte: new Date(`${hojeStr}T00:00:00.000Z`),
+            lt: new Date(`${amanhaStr}T00:00:00.000Z`),
+          },
+        },
+      }),
+    ])
+
+    return {
+      autoEnabled: process.env['BILLING_AUTO_ENABLED'] === 'true',
+      cronSchedule: process.env['BILLING_CRON_SCHEDULE'] ?? '0 8 * * *',
+      ultimaExecucao,
+      execucoesHoje,
+      acoesAutoHoje,
+    }
+  }
+
+  async listAutomationRuns(limit = 10) {
+    return prisma.billingAutomationRun.findMany({
+      orderBy: { startedAt: 'desc' },
+      take: limit,
+    })
+  }
+
   // ── Resumo / KPIs ─────────────────────────────────────────────────────────
 
   async resumo() {
