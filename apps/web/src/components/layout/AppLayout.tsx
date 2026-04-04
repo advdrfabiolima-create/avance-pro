@@ -249,7 +249,7 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
                           onClick={onClose}
                           className={({ isActive }) =>
                             cn(
-                              'flex items-center gap-3 rounded-lg px-3 py-2 text-[13.5px] transition-all duration-150',
+                              'flex items-center gap-3 rounded-lg px-3 py-2 text-[15.5px] transition-all duration-150',
                               isActive
                                 ? 'font-semibold'
                                 : 'font-medium hover:bg-slate-200/50'
