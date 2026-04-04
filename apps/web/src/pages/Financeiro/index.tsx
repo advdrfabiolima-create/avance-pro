@@ -2,11 +2,11 @@ import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   LayoutDashboard, Receipt, ArrowLeftRight,
-  RefreshCw, BarChart2, Settings, DollarSign,
+  RefreshCw, BarChart2, Settings, DollarSign, GitMerge,
 } from 'lucide-react'
-import { Button } from '../../components/ui/Button'
 import VisaoGeral from './VisaoGeral'
 import ConfiguracoesBilling from './ConfiguracoesBilling'
+import ConciliacaoPage from './Conciliacao'
 import PagamentosPage from '../Pagamentos/index'
 import CobrancasPage from '../Cobrancas/index'
 import MovimentosPage from '../Movimentos/index'
@@ -15,7 +15,7 @@ import RelatoriosPage from '../Relatorios/index'
 
 // ─── Tab definitions ──────────────────────────────────────────────────────────
 
-type TabId = 'visao-geral' | 'cobrancas' | 'movimentacoes' | 'recorrencia' | 'relatorios' | 'configuracoes'
+type TabId = 'visao-geral' | 'cobrancas' | 'movimentacoes' | 'recorrencia' | 'conciliacao' | 'relatorios' | 'configuracoes'
 type CobrancasSubTab = 'mensalidades' | 'avulsas'
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
@@ -23,6 +23,7 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'cobrancas',       label: 'Cobranças',      icon: <Receipt size={14} /> },
   { id: 'movimentacoes',   label: 'Movimentações',  icon: <ArrowLeftRight size={14} /> },
   { id: 'recorrencia',     label: 'Recorrência',    icon: <RefreshCw size={14} /> },
+  { id: 'conciliacao',     label: 'Conciliação',    icon: <GitMerge size={14} /> },
   { id: 'relatorios',      label: 'Relatórios',     icon: <BarChart2 size={14} /> },
   { id: 'configuracoes',   label: 'Configurações',  icon: <Settings size={14} /> },
 ]
@@ -104,6 +105,7 @@ export default function FinanceiroPage() {
     'cobrancas':      <CobrancasTab />,
     'movimentacoes':  <MovimentosPage embedded />,
     'recorrencia':    <RecorrenciasPage embedded />,
+    'conciliacao':    <ConciliacaoPage />,
     'relatorios':     <RelatoriosPage embedded />,
     'configuracoes':  <ConfiguracoesBilling />,
   }

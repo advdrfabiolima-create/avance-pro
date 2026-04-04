@@ -396,8 +396,9 @@ model Cobranca {
   criadoEm      DateTime       @default(now()) @map("criado_em")
   pagoEm         DateTime?      @map("pago_em") @db.Date
 
-  aluno     Aluno      @relation(fields: [alunoId], references: [id])
-  pagamento Pagamento? @relation(fields: [pagamentoId], references: [id])
+  aluno            Aluno      @relation(fields: [alunoId], references: [id])
+  pagamento        Pagamento? @relation(fields: [pagamentoId], references: [id])
+  reconciliacoes   BillingReconciliation[]
 
   @@map("cobrancas")
 }
@@ -416,9 +417,34 @@ model MovimentoFinanceiro {
   observacao   String?         @db.Text
   criadoEm    DateTime        @default(now()) @map("criado_em")
 
-  pagamento Pagamento? @relation(fields: [pagamentoId], references: [id])
+  pagamento        Pagamento? @relation(fields: [pagamentoId], references: [id])
+  reconciliacoes   BillingReconciliation[]
 
   @@map("movimentos_financeiros")
+}
+
+// ─── Conciliação Financeira ───────────────────────────────────────────────────
+
+model BillingReconciliation {
+  id             String    @id @default(uuid())
+  cobrancaId     String    @map("cobranca_id")
+  movimentoId    String?   @map("movimento_id")
+  provider       String?   @db.VarChar(20)
+  /// pendente | conciliado | ignorado | divergente
+  status         String    @default("pendente") @db.VarChar(20)
+  /// auto | manual | imported | webhook | cnab
+  matchType      String?   @map("match_type") @db.VarChar(20)
+  notas          String?   @db.Text
+  reconciladoEm  DateTime? @map("reconciliado_em")
+  reconciladoPor String?   @map("reconciliado_por") @db.VarChar(100)
+  criadoEm       DateTime  @default(now()) @map("criado_em")
+  atualizadoEm   DateTime  @updatedAt @map("atualizado_em")
+
+  cobranca  Cobranca             @relation(fields: [cobrancaId], references: [id])
+  movimento MovimentoFinanceiro? @relation(fields: [movimentoId], references: [id])
+
+  @@unique([cobrancaId])
+  @@map("billing_reconciliations")
 }
 
 // ─── Recorrências ────────────────────────────────────────────────────────────
