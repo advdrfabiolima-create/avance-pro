@@ -532,7 +532,7 @@ function ModalEmailCobranca({ cobranca, onClose, onEnviado }: ModalEmailCobranca
 
   const [subject, setSubject] = useState(`Cobrança — ${cobranca.aluno.nome}`)
   const [template, setTemplate] = useState(
-    `Olá, {{nome_responsavel}}!\n\nInformamos que há uma cobrança para *{{nome_aluno}}* no valor de *{{valor}}* com vencimento em *{{vencimento}}*.\n\nCaso tenha dúvidas, entre em contato conosco.\n\nAtenciosamente,\nEquipe Kumon`,
+    `Olá, {{nome_responsavel}}!\n\nInformamos que há uma cobrança para {{nome_aluno}} no valor de {{valor}} com vencimento em {{vencimento}}.\n\nCaso tenha dúvidas, entre em contato conosco.\n\nAtenciosamente,\nEquipe Kumon`,
   )
   const [loading, setLoading] = useState(false)
   const [enviado, setEnviado] = useState(false)

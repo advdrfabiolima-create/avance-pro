@@ -57,8 +57,18 @@ export async function enviarEmailCobranca(params: {
     throw new Error(`Responsável do aluno "${cobranca.aluno.nome}" não possui e-mail cadastrado`)
   }
 
-  const textContent = await reguaCobrancaService.renderTemplateForCharge(template, cobrancaId)
-  const htmlContent = `<div style="font-family:sans-serif;font-size:14px;line-height:1.6;color:#333">${textContent.replace(/\n/g, '<br>')}</div>`
+  const rendered = await reguaCobrancaService.renderTemplateForCharge(template, cobrancaId)
+
+  // Texto plano: remove marcação *asterisco* do WhatsApp
+  const textContent = rendered.replace(/\*([^*]+)\*/g, '$1')
+
+  // HTML: converte *asterisco* em <strong> e quebras de linha em <br>
+  const htmlContent =
+    `<div style="font-family:sans-serif;font-size:14px;line-height:1.6;color:#333">` +
+    rendered
+      .replace(/\*([^*]+)\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br>') +
+    `</div>`
 
   await brevoSendEmail({
     to: { name: responsavel.nome, email: responsavel.email },

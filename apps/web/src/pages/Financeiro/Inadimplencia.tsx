@@ -207,7 +207,7 @@ function ModalEmail({ cobranca, onClose, onEnviado }: ModalEmailProps) {
 
   const [subject, setSubject] = useState(`Mensalidade em atraso — ${cobranca.aluno.nome}`)
   const [template, setTemplate] = useState(
-    `Olá, {{nome_responsavel}}!\n\nA mensalidade de *{{nome_aluno}}* está em atraso ({{vencimento}}) no valor de *{{valor}}*.\n\nPedimos que realize o pagamento o quanto antes para evitar encargos adicionais.\n\nEm caso de dúvidas, entre em contato conosco.\n\nAtenciosamente,\nEquipe Kumon`,
+    `Olá, {{nome_responsavel}}!\n\nA mensalidade de {{nome_aluno}} está em atraso ({{vencimento}}) no valor de {{valor}}.\n\nPedimos que realize o pagamento o quanto antes para evitar encargos adicionais.\n\nEm caso de dúvidas, entre em contato conosco.\n\nAtenciosamente,\nEquipe Kumon`,
   )
   const [loading, setLoading] = useState(false)
   const [enviado, setEnviado] = useState(false)
