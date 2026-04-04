@@ -38,6 +38,21 @@ function maskDoc(doc: string) {
   return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
 }
 
+function applyDocMask(value: string, type: 'cpf' | 'cnpj') {
+  const d = value.replace(/\D/g, '')
+  if (type === 'cpf') {
+    return d.slice(0, 11)
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+  }
+  return d.slice(0, 14)
+    .replace(/(\d{2})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1/$2')
+    .replace(/(\d{4})(\d{1,2})$/, '$1-$2')
+}
+
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 
 function KpiCard({ label, value, sub, icon, color }: { label: string; value: string | number; sub?: string; icon: React.ReactNode; color: string }) {
@@ -81,7 +96,16 @@ function ModalConta({ conta, catalogo, onClose, onSaved }: ModalContaProps) {
   const [agreementCode, setAgreementCode] = useState(conta?.agreementCode ?? '')
   const [walletCode, setWalletCode] = useState(conta?.walletCode ?? '')
   const [beneficiaryName, setBeneficiaryName] = useState(conta?.beneficiaryName ?? '')
-  const [beneficiaryDocument, setBeneficiaryDocument] = useState(conta?.beneficiaryDocument ?? '')
+  const [docType, setDocType] = useState<'cpf' | 'cnpj'>(() => {
+    const d = (conta?.beneficiaryDocument ?? '').replace(/\D/g, '')
+    return d.length > 11 ? 'cnpj' : 'cpf'
+  })
+  const [beneficiaryDocument, setBeneficiaryDocument] = useState(() => {
+    const raw = conta?.beneficiaryDocument ?? ''
+    if (!raw) return ''
+    const d = raw.replace(/\D/g, '')
+    return applyDocMask(d, d.length > 11 ? 'cnpj' : 'cpf')
+  })
   const [remittanceLayout, setRemittanceLayout] = useState(conta?.remittanceLayout ?? 'cnab240')
   const [protestDays, setProtestDays] = useState(String(conta?.protestDays ?? 0))
   const [instructions, setInstructions] = useState(conta?.instructions ?? '')
@@ -188,8 +212,33 @@ function ModalConta({ conta, catalogo, onClose, onSaved }: ModalContaProps) {
               <Input value={beneficiaryName} onChange={(e) => setBeneficiaryName(e.target.value)} placeholder="Razão social ou nome" />
             </div>
             <div className="space-y-1.5">
-              <Label>CNPJ / CPF *</Label>
-              <Input value={beneficiaryDocument} onChange={(e) => setBeneficiaryDocument(e.target.value)} placeholder="00.000.000/0000-00" />
+              <div className="flex items-center justify-between">
+                <Label>Documento *</Label>
+                <div className="flex items-center gap-3 text-sm">
+                  {(['cpf', 'cnpj'] as const).map((t) => (
+                    <label key={t} className="flex items-center gap-1.5 cursor-pointer select-none">
+                      <input
+                        type="radio"
+                        name="docType"
+                        value={t}
+                        checked={docType === t}
+                        onChange={() => {
+                          setDocType(t)
+                          setBeneficiaryDocument('')
+                        }}
+                        className="accent-primary"
+                      />
+                      <span className="uppercase font-medium text-xs">{t}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <Input
+                value={beneficiaryDocument}
+                onChange={(e) => setBeneficiaryDocument(applyDocMask(e.target.value, docType))}
+                placeholder={docType === 'cpf' ? '000.000.000-00' : '00.000.000/0000-00'}
+                maxLength={docType === 'cpf' ? 14 : 18}
+              />
             </div>
           </div>
 
