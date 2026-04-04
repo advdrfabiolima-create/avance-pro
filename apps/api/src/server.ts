@@ -26,6 +26,7 @@ import { configEmpresaRoutes } from './modules/config-empresa/config-empresa.rou
 import { ocrRoutes } from './modules/ocr/ocr.routes'
 import { conciliacaoRoutes } from './modules/conciliacao/conciliacao.routes'
 import { reguaCobrancaRoutes } from './modules/regua-cobranca/regua-cobranca.routes'
+import { bancosRoutes } from './modules/bancos/bancos.routes'
 
 async function main() {
   const app = Fastify({
@@ -98,6 +99,9 @@ async function main() {
 
   // Régua de cobrança inteligente
   await app.register(reguaCobrancaRoutes, { prefix: '/api/regua-cobranca' })
+
+  // Bancos / CNAB
+  await app.register(bancosRoutes, { prefix: '/api/bancos' })
 
   // Health check
   app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }))

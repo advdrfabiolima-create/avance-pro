@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   LayoutDashboard, Receipt, ArrowLeftRight,
-  RefreshCw, BarChart2, Settings, DollarSign, GitMerge, Zap,
+  RefreshCw, BarChart2, Settings, DollarSign, GitMerge, Zap, Landmark,
 } from 'lucide-react'
 import VisaoGeral from './VisaoGeral'
 import ConfiguracoesBilling from './ConfiguracoesBilling'
 import ConciliacaoPage from './Conciliacao'
 import RegraCobrancaPage from './RegraCobranca'
+import BancosPage from './Bancos'
 import PagamentosPage from '../Pagamentos/index'
 import CobrancasPage from '../Cobrancas/index'
 import MovimentosPage from '../Movimentos/index'
@@ -16,7 +17,7 @@ import RelatoriosPage from '../Relatorios/index'
 
 // ─── Tab definitions ──────────────────────────────────────────────────────────
 
-type TabId = 'visao-geral' | 'cobrancas' | 'movimentacoes' | 'recorrencia' | 'conciliacao' | 'relatorios' | 'regua' | 'configuracoes'
+type TabId = 'visao-geral' | 'cobrancas' | 'movimentacoes' | 'recorrencia' | 'conciliacao' | 'relatorios' | 'regua' | 'bancos' | 'configuracoes'
 type CobrancasSubTab = 'mensalidades' | 'avulsas'
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
@@ -27,6 +28,7 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'conciliacao',     label: 'Conciliação',    icon: <GitMerge size={14} /> },
   { id: 'relatorios',      label: 'Relatórios',     icon: <BarChart2 size={14} /> },
   { id: 'regua',           label: 'Régua',          icon: <Zap size={14} /> },
+  { id: 'bancos',          label: 'Bancos',         icon: <Landmark size={14} /> },
   { id: 'configuracoes',   label: 'Configurações',  icon: <Settings size={14} /> },
 ]
 
@@ -110,6 +112,7 @@ export default function FinanceiroPage() {
     'conciliacao':    <ConciliacaoPage />,
     'relatorios':     <RelatoriosPage embedded />,
     'regua':          <RegraCobrancaPage />,
+    'bancos':         <BancosPage />,
     'configuracoes':  <ConfiguracoesBilling />,
   }
 

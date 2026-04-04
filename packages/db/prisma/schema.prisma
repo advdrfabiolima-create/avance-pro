@@ -396,10 +396,14 @@ model Cobranca {
   criadoEm      DateTime       @default(now()) @map("criado_em")
   pagoEm         DateTime?      @map("pago_em") @db.Date
 
-  aluno            Aluno      @relation(fields: [alunoId], references: [id])
-  pagamento        Pagamento? @relation(fields: [pagamentoId], references: [id])
+  bankAccountId    String?    @map("bank_account_id")
+
+  aluno            Aluno               @relation(fields: [alunoId], references: [id])
+  pagamento        Pagamento?          @relation(fields: [pagamentoId], references: [id])
+  bankAccount      BillingBankAccount? @relation(fields: [bankAccountId], references: [id])
   reconciliacoes   BillingReconciliation[]
   actionLogs       BillingActionLog[]
+  cnabOccurrences  CnabOccurrence[]
 
   @@map("cobrancas")
 }
@@ -422,6 +426,111 @@ model MovimentoFinanceiro {
   reconciliacoes   BillingReconciliation[]
 
   @@map("movimentos_financeiros")
+}
+
+// ─── Bancos / CNAB ────────────────────────────────────────────────────────────
+
+model BankCatalog {
+  id               String   @id @default(uuid())
+  code             String   @unique @db.VarChar(10)
+  name             String   @db.VarChar(100)
+  /// CNAB 240, CNAB 400, CNAB 240/400
+  cnabSupport      String   @default("") @map("cnab_support") @db.VarChar(20)
+  cnab240Supported Boolean  @default(false) @map("cnab240_supported")
+  cnab400Supported Boolean  @default(false) @map("cnab400_supported")
+  isActive         Boolean  @default(true) @map("is_active")
+  /// JSON — observações, status de homologação, etc.
+  metadata         String?  @db.Text
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  accounts BillingBankAccount[]
+
+  @@map("bank_catalog")
+}
+
+model BillingBankAccount {
+  id                  String   @id @default(uuid())
+  bankCode            String   @map("bank_code") @db.VarChar(10)
+  bankName            String   @map("bank_name") @db.VarChar(100)
+  accountName         String   @map("account_name") @db.VarChar(150)
+  agreementCode       String?  @map("agreement_code") @db.VarChar(50)
+  walletCode          String?  @map("wallet_code") @db.VarChar(10)
+  agency              String   @db.VarChar(10)
+  agencyDigit         String?  @map("agency_digit") @db.VarChar(2)
+  accountNumber       String   @map("account_number") @db.VarChar(20)
+  accountDigit        String?  @map("account_digit") @db.VarChar(2)
+  beneficiaryName     String   @map("beneficiary_name") @db.VarChar(100)
+  beneficiaryDocument String   @map("beneficiary_document") @db.VarChar(20)
+  /// cnab240 | cnab400
+  remittanceLayout    String   @default("cnab240") @map("remittance_layout") @db.VarChar(10)
+  fileNamingPattern   String?  @map("file_naming_pattern") @db.VarChar(100)
+  sequentialFileNumber Int     @default(1) @map("sequential_file_number")
+  isDefault           Boolean  @default(false) @map("is_default")
+  isActive            Boolean  @default(true) @map("is_active")
+  instructions        String?  @db.Text
+  protestDays         Int      @default(0) @map("protest_days")
+  autoDropDays        Int      @default(0) @map("auto_drop_days")
+  /// JSON — future API credentials, extra config
+  metadata            String?  @db.Text
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  bank      BankCatalog @relation(fields: [bankCode], references: [code])
+  cnabFiles CnabFile[]
+  cobrancas Cobranca[]
+
+  @@map("billing_bank_accounts")
+}
+
+model CnabFile {
+  id             String    @id @default(uuid())
+  bankAccountId  String    @map("bank_account_id")
+  /// remessa | retorno
+  type           String    @db.VarChar(10)
+  fileName       String    @db.VarChar(200)
+  /// cnab240 | cnab400
+  layoutType     String    @map("layout_type") @db.VarChar(10)
+  /// pendente | processado | erro
+  status         String    @default("pendente") @db.VarChar(20)
+  totalRecords   Int?      @map("total_records")
+  processedCount Int?      @map("processed_count")
+  errorCount     Int?      @map("error_count")
+  generatedAt    DateTime? @map("generated_at")
+  importedAt     DateTime? @map("imported_at")
+  processedAt    DateTime? @map("processed_at")
+  createdBy      String?   @map("created_by") @db.VarChar(100)
+  metadata       String?   @db.Text
+  rawContent     String?   @map("raw_content") @db.Text
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  bankAccount BillingBankAccount @relation(fields: [bankAccountId], references: [id])
+  occurrences CnabOccurrence[]
+
+  @@map("cnab_files")
+}
+
+model CnabOccurrence {
+  id                   String    @id @default(uuid())
+  cnabFileId           String    @map("cnab_file_id")
+  billingChargeId      String?   @map("billing_charge_id")
+  occurrenceCode       String    @map("occurrence_code") @db.VarChar(10)
+  occurrenceDescription String   @map("occurrence_description") @db.VarChar(200)
+  ourNumber            String?   @map("our_number") @db.VarChar(50)
+  documentNumber       String?   @map("document_number") @db.VarChar(50)
+  amount               Decimal?  @db.Decimal(15, 2)
+  paidAmount           Decimal?  @map("paid_amount") @db.Decimal(15, 2)
+  occurrenceDate       DateTime? @map("occurrence_date") @db.Date
+  creditDate           DateTime? @map("credit_date") @db.Date
+  rawLine              String?   @map("raw_line") @db.Text
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  cnabFile      CnabFile  @relation(fields: [cnabFileId], references: [id])
+  billingCharge Cobranca? @relation(fields: [billingChargeId], references: [id])
+
+  @@map("cnab_occurrences")
 }
 
 // ─── Régua de Cobrança ────────────────────────────────────────────────────────
