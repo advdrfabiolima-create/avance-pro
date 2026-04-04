@@ -1,4 +1,5 @@
 import 'dotenv/config'
+import { prisma } from '@kumon-advance/db'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
@@ -29,7 +30,24 @@ import { reguaCobrancaRoutes } from './modules/regua-cobranca/regua-cobranca.rou
 import { bancosRoutes } from './modules/bancos/bancos.routes'
 import { startScheduler } from './modules/regua-cobranca/billing-automation.scheduler'
 
+/**
+ * Aplica colunas novas que possam ainda não existir no banco de produção.
+ * Usa IF NOT EXISTS — seguro de rodar múltiplas vezes.
+ */
+async function applyPendingColumns() {
+  const queries = [
+    `ALTER TABLE "billing_rules" ADD COLUMN IF NOT EXISTS "email_subject" VARCHAR(255)`,
+    `ALTER TABLE "config_empresa" ADD COLUMN IF NOT EXISTS "email_sender_name" VARCHAR(200)`,
+  ]
+  for (const sql of queries) {
+    await prisma.$executeRawUnsafe(sql)
+  }
+  console.log('[startup] Colunas verificadas/aplicadas.')
+}
+
 async function main() {
+  await applyPendingColumns()
+
   const app = Fastify({
     logger: true,
     bodyLimit: 10 * 1024 * 1024, // 10MB para suportar fotos em base64
