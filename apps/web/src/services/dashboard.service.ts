@@ -128,9 +128,38 @@ export async function buscarSessoesHoje(): Promise<SessaoHoje[]> {
 }
 
 export async function buscarInadimplentes(): Promise<Inadimplente[]> {
-  const res = await api.get('/pagamentos/inadimplentes')
-  const dados = unwrap<Inadimplente[]>(res)
-  return Array.isArray(dados) ? dados : []
+  // Busca inadimplência de mensalidades (pagamentos) e cobranças avulsas em paralelo
+  const [pagRes, cobRes] = await Promise.all([
+    api.get('/pagamentos/inadimplentes').catch(() => null),
+    api.get('/cobrancas/inadimplencia', { params: { pageSize: 100 } }).catch(() => null),
+  ])
+
+  const mapa = new Map<string, Inadimplente>()
+
+  // Mensalidades vencidas
+  const pagLista = pagRes ? unwrap<Inadimplente[]>(pagRes) : []
+  if (Array.isArray(pagLista)) {
+    pagLista.forEach((i) => mapa.set(i.alunoId, { ...i }))
+  }
+
+  // Cobranças avulsas vencidas
+  const cobDados = cobRes ? unwrap<{ data: any[] }>(cobRes) : null
+  const cobLista: any[] = Array.isArray(cobDados?.data) ? cobDados!.data : []
+  cobLista.forEach((c) => {
+    const existing = mapa.get(c.alunoId)
+    if (existing) {
+      existing.totalDevido += Number(c.valor)
+    } else {
+      mapa.set(c.alunoId, {
+        alunoId: c.alunoId,
+        nome: c.aluno?.nome ?? '',
+        totalDevido: Number(c.valor),
+        pagamentos: [],
+      })
+    }
+  })
+
+  return Array.from(mapa.values()).sort((a, b) => b.totalDevido - a.totalDevido)
 }
 
 export async function buscarAlunosOperacional(): Promise<AlunoOperacional[]> {

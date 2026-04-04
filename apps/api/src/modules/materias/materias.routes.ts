@@ -12,7 +12,7 @@ export async function materiasRoutes(app: FastifyInstance): Promise<void> {
       }),
       prisma.matricula.groupBy({
         by: ['materiaId'],
-        where: { ativo: true },
+        where: { ativo: true, aluno: { ativo: true } },
         _count: { alunoId: true },
       }),
     ])
