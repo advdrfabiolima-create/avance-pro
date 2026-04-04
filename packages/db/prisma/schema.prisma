@@ -399,6 +399,7 @@ model Cobranca {
   aluno            Aluno      @relation(fields: [alunoId], references: [id])
   pagamento        Pagamento? @relation(fields: [pagamentoId], references: [id])
   reconciliacoes   BillingReconciliation[]
+  actionLogs       BillingActionLog[]
 
   @@map("cobrancas")
 }
@@ -421,6 +422,48 @@ model MovimentoFinanceiro {
   reconciliacoes   BillingReconciliation[]
 
   @@map("movimentos_financeiros")
+}
+
+// ─── Régua de Cobrança ────────────────────────────────────────────────────────
+
+model BillingRule {
+  id         String   @id @default(uuid())
+  name       String   @db.VarChar(150)
+  /// before | on_due | after
+  eventType  String   @map("event_type") @db.VarChar(20)
+  offsetDays Int      @default(0) @map("offset_days")
+  /// whatsapp | internal | email | webhook
+  channel    String   @db.VarChar(30)
+  template   String   @db.Text
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  actionLogs BillingActionLog[]
+
+  @@map("billing_rules")
+}
+
+model BillingActionLog {
+  id              String    @id @default(uuid())
+  cobrancaId      String    @map("cobranca_id")
+  billingRuleId   String?   @map("billing_rule_id")
+  /// whatsapp_sent | whatsapp_prepared | internal_alert | manual | ignored
+  actionType      String    @map("action_type") @db.VarChar(50)
+  channel         String    @db.VarChar(30)
+  messageSnapshot String?   @map("message_snapshot") @db.Text
+  /// pendente | enviado | ignorado | erro
+  status          String    @default("pendente") @db.VarChar(20)
+  triggeredAt     DateTime  @default(now()) @map("triggered_at")
+  triggeredBy     String?   @map("triggered_by") @db.VarChar(100)
+  metadata        String?   @db.Text
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  cobranca    Cobranca     @relation(fields: [cobrancaId], references: [id])
+  billingRule BillingRule? @relation(fields: [billingRuleId], references: [id])
+
+  @@map("billing_action_logs")
 }
 
 // ─── Conciliação Financeira ───────────────────────────────────────────────────

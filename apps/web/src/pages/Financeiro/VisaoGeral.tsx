@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   DollarSign, TrendingUp, TrendingDown, AlertTriangle,
-  CheckCircle2, Clock, Users, ArrowRight,
+  CheckCircle2, Clock, Users, ArrowRight, Zap,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { relatoriosService } from '../../services/relatorios.service'
 import { cobrancasService } from '../../services/cobrancas.service'
+import { reguaCobrancaService, type ResumoRegua } from '../../services/reguaCobranca.service'
 
 function fmt(v: number | string | null | undefined): string {
   return Number(v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -55,20 +56,23 @@ export default function VisaoGeral() {
   const [resumo, setResumo] = useState<any>(null)
   const [inadimplentes, setInadimplentes] = useState<any>(null)
   const [ultimasCobrancas, setUltimasCobrancas] = useState<any[]>([])
+  const [resumoRegua, setResumoRegua] = useState<ResumoRegua | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function carregar() {
       try {
-        const [resumoRes, inadRes, cobRes] = await Promise.all([
+        const [resumoRes, inadRes, cobRes, reguaRes] = await Promise.all([
           relatoriosService.resumo({ dataInicio: inicio, dataFim: fim }),
           relatoriosService.inadimplencia(),
           cobrancasService.listar({ pageSize: 5 }),
+          reguaCobrancaService.resumo(),
         ])
         setResumo((resumoRes.data as any)?.data ?? null)
         setInadimplentes((inadRes.data as any)?.data ?? null)
         const cobs = (cobRes.data as any)?.data?.data ?? []
         setUltimasCobrancas(cobs)
+        setResumoRegua((reguaRes.data as any)?.data ?? null)
       } catch {
         /* silencioso */
       } finally {
@@ -243,6 +247,57 @@ export default function VisaoGeral() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Alertas da Régua de Cobrança */}
+      {resumoRegua && (resumoRegua.vencendoHoje > 0 || resumoRegua.atrasoCritico > 0) && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Zap size={16} className="text-purple-600" />
+                Alertas da Régua de Cobrança
+              </CardTitle>
+              <Link
+                to="/financeiro?tab=regua"
+                className="flex items-center gap-1 text-xs text-primary hover:underline"
+              >
+                Ver régua <ArrowRight size={11} />
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {resumoRegua.vencendoHoje > 0 && (
+                <div className="flex items-center gap-3 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3">
+                  <Clock size={18} className="text-orange-600 shrink-0" />
+                  <div>
+                    <p className="text-sm font-bold text-orange-700">{resumoRegua.vencendoHoje} cobrança(s)</p>
+                    <p className="text-xs text-orange-600">vencem hoje</p>
+                  </div>
+                </div>
+              )}
+              {resumoRegua.vencendoEm3Dias > resumoRegua.vencendoHoje && (
+                <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+                  <Clock size={18} className="text-blue-600 shrink-0" />
+                  <div>
+                    <p className="text-sm font-bold text-blue-700">{resumoRegua.vencendoEm3Dias} cobrança(s)</p>
+                    <p className="text-xs text-blue-600">vencem em até 3 dias</p>
+                  </div>
+                </div>
+              )}
+              {resumoRegua.atrasoCritico > 0 && (
+                <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+                  <AlertTriangle size={18} className="text-red-600 shrink-0" />
+                  <div>
+                    <p className="text-sm font-bold text-red-700">{resumoRegua.atrasoCritico} cobrança(s)</p>
+                    <p className="text-xs text-red-600">em atraso crítico (+5 dias)</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Resumo de movimentos */}
       {movimentos && (
