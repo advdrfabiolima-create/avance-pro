@@ -5,11 +5,24 @@ export interface BrevoEmailParams {
   subject: string
   htmlContent: string
   textContent?: string
+  /** Sobrescreve env.BREVO_SENDER_NAME quando fornecido (ex: nome dinâmico por unidade). */
+  senderName?: string
+}
+
+/**
+ * Resolve o nome do remetente com fallback seguro:
+ * 1. senderName explícito (dinâmico por unidade)
+ * 2. BREVO_SENDER_NAME do ambiente (fallback global)
+ */
+export function resolveSenderName(senderName?: string | null): string {
+  return senderName?.trim() || env.BREVO_SENDER_NAME
 }
 
 /**
  * Envia e-mail transacional via Brevo REST API (v3).
  * Requer BREVO_API_KEY configurada no ambiente.
+ * O e-mail remetente é sempre global (BREVO_SENDER_EMAIL).
+ * O nome exibido pode ser dinâmico via params.senderName.
  */
 export async function brevoSendEmail(params: BrevoEmailParams): Promise<void> {
   if (!env.BREVO_API_KEY) {
@@ -17,7 +30,7 @@ export async function brevoSendEmail(params: BrevoEmailParams): Promise<void> {
   }
 
   const body = {
-    sender: { name: env.BREVO_SENDER_NAME, email: env.BREVO_SENDER_EMAIL },
+    sender: { name: resolveSenderName(params.senderName), email: env.BREVO_SENDER_EMAIL },
     to: [params.to],
     subject: params.subject,
     htmlContent: params.htmlContent,

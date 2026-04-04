@@ -659,18 +659,21 @@ model NotaFiscal {
 // ─── Configurações da Empresa ────────────────────────────────────────────────
 
 model ConfigEmpresa {
-  id          String   @id @default(uuid())
-  nome        String   @db.VarChar(200)
-  cnpj        String?  @db.VarChar(18)
-  logo        String?  @db.Text
-  cep         String?  @db.VarChar(9)
-  rua         String?  @db.VarChar(200)
-  numero      String?  @db.VarChar(20)
-  complemento String?  @db.VarChar(100)
-  bairro      String?  @db.VarChar(100)
-  cidade      String?  @db.VarChar(100)
-  estado      String?  @db.VarChar(2)
-  atualizadoEm DateTime @default(now()) @updatedAt @map("atualizado_em")
+  id              String   @id @default(uuid())
+  nome            String   @db.VarChar(200)
+  cnpj            String?  @db.VarChar(18)
+  logo            String?  @db.Text
+  cep             String?  @db.VarChar(9)
+  rua             String?  @db.VarChar(200)
+  numero          String?  @db.VarChar(20)
+  complemento     String?  @db.VarChar(100)
+  bairro          String?  @db.VarChar(100)
+  cidade          String?  @db.VarChar(100)
+  estado          String?  @db.VarChar(2)
+  /// Nome exibido como remetente nos e-mails enviados pela unidade.
+  /// Fallback: nome da unidade → BREVO_SENDER_NAME
+  emailSenderName String?  @map("email_sender_name") @db.VarChar(200)
+  atualizadoEm    DateTime @default(now()) @updatedAt @map("atualizado_em")
 
   @@map("config_empresa")
 }

@@ -12,6 +12,7 @@ export interface ConfigEmpresa {
   bairro: string | null
   cidade: string | null
   estado: string | null
+  emailSenderName: string | null
   atualizadoEm: string
 }
 

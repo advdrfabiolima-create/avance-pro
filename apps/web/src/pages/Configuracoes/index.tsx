@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { KeyRound, User, CheckCircle, Zap, Eye, EyeOff, Trash2, Building2, MapPin, Upload, X } from 'lucide-react'
+import { KeyRound, User, CheckCircle, Zap, Eye, EyeOff, Trash2, Building2, MapPin, Upload, X, Mail } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Label } from '../../components/ui/Label'
@@ -61,6 +61,7 @@ function CardEmpresa() {
     bairro: '',
     cidade: '',
     estado: '',
+    emailSenderName: '',
   })
 
   useEffect(() => {
@@ -78,6 +79,7 @@ function CardEmpresa() {
           bairro: d.bairro ?? '',
           cidade: d.cidade ?? '',
           estado: d.estado ?? '',
+          emailSenderName: d.emailSenderName ?? '',
         })
       }
     }).catch(() => {}).finally(() => setLoading(false))
@@ -141,6 +143,7 @@ function CardEmpresa() {
         bairro: form.bairro || null,
         cidade: form.cidade || null,
         estado: form.estado || null,
+        emailSenderName: form.emailSenderName.trim() || null,
       })
       setSucesso('Configurações da empresa salvas com sucesso!')
     } catch {
@@ -248,6 +251,28 @@ function CardEmpresa() {
                 placeholder="00.000.000/0000-00"
                 maxLength={18}
               />
+            </div>
+          </div>
+
+          {/* Comunicação */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <Mail size={14} />
+              Comunicação
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="emailSenderName">Nome exibido nos e-mails</Label>
+              <Input
+                id="emailSenderName"
+                value={form.emailSenderName}
+                onChange={(e) => set('emailSenderName', e.target.value)}
+                placeholder={form.nome || 'Ex: Kumon Centro Campina Grande'}
+                maxLength={200}
+              />
+              <p className="text-xs text-muted-foreground">
+                Esse nome será exibido como remetente nos e-mails enviados pela unidade.
+                Se não preenchido, será usado o nome da unidade.
+              </p>
             </div>
           </div>
 

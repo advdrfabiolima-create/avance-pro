@@ -26,6 +26,7 @@ export async function configEmpresaRoutes(app: FastifyInstance): Promise<void> {
       bairro?: string
       cidade?: string
       estado?: string
+      emailSenderName?: string
     }
 
     if (!body.nome?.trim()) {
@@ -43,6 +44,7 @@ export async function configEmpresaRoutes(app: FastifyInstance): Promise<void> {
       bairro: body.bairro?.trim() || null,
       cidade: body.cidade?.trim() || null,
       estado: body.estado?.trim() || null,
+      emailSenderName: body.emailSenderName?.trim() || null,
     }
 
     try {
