@@ -40,6 +40,9 @@ const ReajustesPage = lazy(() => import('./pages/Reajustes/index'))
 
 const GuiaPage = lazy(() => import('./pages/Guia/index'))
 
+// Biblioteca inteligente de exercícios
+const BibliotecaPage = lazy(() => import('./pages/Biblioteca/index'))
+
 // Novas páginas — Fase 4: Exercícios
 const ExerciciosPage = lazy(() => import('./pages/Exercicios/index'))
 const ExercicioDetalhePage = lazy(() => import('./pages/Exercicios/ExercicioDetalhe'))
@@ -100,6 +103,9 @@ export default function App() {
             <Route path="/notas-fiscais" element={<NotasFiscaisPage />} />
             <Route path="/importacoes" element={<ImportacoesPage />} />
             <Route path="/reajustes" element={<ReajustesPage />} />
+
+            {/* Biblioteca de Exercícios */}
+            <Route path="/biblioteca" element={<BibliotecaPage />} />
 
             {/* Exercícios */}
             <Route path="/exercicios" element={<ExerciciosPage />} />

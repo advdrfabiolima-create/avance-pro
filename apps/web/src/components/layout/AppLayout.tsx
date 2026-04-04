@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   BookOpen,
+  Library,
   MessageSquare,
   Grid3X3,
   CheckSquare,
@@ -60,6 +61,7 @@ const navGroups: NavGroup[] = [
       { to: '/presenca', label: 'Lista de Presença', icon: <CheckSquare size={15} /> },
       { to: '/reunioes', label: 'Reuniões', icon: <MessageSquare size={15} /> },
       { to: '/exercicios', label: 'Exercícios', icon: <BookMarked size={15} /> },
+      { to: '/biblioteca', label: 'Biblioteca', icon: <Library size={15} /> },
     ],
   },
   {

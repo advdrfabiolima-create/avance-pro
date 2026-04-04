@@ -154,6 +154,7 @@ model Aluno {
   errosRecorrentes ErroRecorrente[]
   sugestoes        SugestaoReforco[]
   tentativasOcr    TentativaOcr[]
+  atividadesBib    AtividadeAluno[]
 
   @@map("alunos")
 }
@@ -862,4 +863,146 @@ model RespostaOcrDetectada {
   questao      Questao?      @relation(fields: [questaoId], references: [id])
 
   @@map("respostas_ocr_detectadas")
+}
+
+// ─── Biblioteca Inteligente de Exercícios ─────────────────────────────────────
+
+enum DisciplinaBib {
+  matematica
+  portugues
+  ingles
+}
+
+enum DificuldadeBib {
+  facil
+  medio
+  dificil
+}
+
+enum TipoBib {
+  objetivo
+  numerico
+  texto
+}
+
+enum StatusBib {
+  rascunho
+  publicado
+  arquivado
+}
+
+enum OrigemBib {
+  manual
+  ia
+}
+
+enum DestinatarioBib {
+  aluno
+  turma
+}
+
+model BibExercicio {
+  id            String        @id @default(uuid())
+  disciplina    DisciplinaBib
+  topico        String        @db.VarChar(100)
+  subtopico     String?       @db.VarChar(100)
+  nivel         String        @db.VarChar(10)
+  dificuldade   DificuldadeBib
+  tipo          TipoBib
+  enunciado     String        @db.Text
+  opcoes        Json?
+  resposta      String        @db.Text
+  explicacao    String        @db.Text
+  tags          Json          @default("[]")
+  origem        OrigemBib     @default(manual)
+  status        StatusBib     @default(rascunho)
+  criadoPorId   String?       @map("criado_por_id")
+  revisadoPorId String?       @map("revisado_por_id")
+  criadoEm      DateTime      @default(now()) @map("criado_em")
+  atualizadoEm  DateTime      @updatedAt @map("atualizado_em")
+
+  trilhaItens TrilhaItem[]
+  listaItens  ListaItem[]
+  atividades  AtividadeAluno[]
+
+  @@map("bib_exercicios")
+}
+
+model TrilhaPedagogica {
+  id           String        @id @default(uuid())
+  nome         String        @db.VarChar(200)
+  disciplina   DisciplinaBib
+  descricao    String?       @db.Text
+  nivelInicio  String        @db.VarChar(10) @map("nivel_inicio")
+  nivelFim     String        @db.VarChar(10) @map("nivel_fim")
+  status       StatusBib     @default(rascunho)
+  criadoEm     DateTime      @default(now()) @map("criado_em")
+  atualizadoEm DateTime      @updatedAt @map("atualizado_em")
+
+  itens TrilhaItem[]
+
+  @@map("trilhas_pedagogicas")
+}
+
+model TrilhaItem {
+  id          String @id @default(uuid())
+  trilhaId    String @map("trilha_id")
+  exercicioId String @map("exercicio_id")
+  ordemIndex  Int    @map("ordem_index")
+
+  trilha    TrilhaPedagogica @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
+  exercicio BibExercicio     @relation(fields: [exercicioId], references: [id])
+
+  @@unique([trilhaId, exercicioId])
+  @@map("trilha_itens")
+}
+
+model ListaExercicio {
+  id           String          @id @default(uuid())
+  titulo       String          @db.VarChar(200)
+  disciplina   DisciplinaBib?
+  descricao    String?         @db.Text
+  criadoPorId  String?         @map("criado_por_id")
+  destinatario DestinatarioBib @default(aluno)
+  destinoId    String?         @map("destino_id")
+  status       StatusBib       @default(rascunho)
+  criadoEm     DateTime        @default(now()) @map("criado_em")
+  atualizadoEm DateTime        @updatedAt @map("atualizado_em")
+
+  itens      ListaItem[]
+  atividades AtividadeAluno[]
+
+  @@map("listas_exercicios")
+}
+
+model ListaItem {
+  id          String @id @default(uuid())
+  listaId     String @map("lista_id")
+  exercicioId String @map("exercicio_id")
+  ordemIndex  Int    @map("ordem_index")
+
+  lista     ListaExercicio @relation(fields: [listaId], references: [id], onDelete: Cascade)
+  exercicio BibExercicio   @relation(fields: [exercicioId], references: [id])
+
+  @@unique([listaId, exercicioId])
+  @@map("lista_itens")
+}
+
+model AtividadeAluno {
+  id              String   @id @default(uuid())
+  alunoId         String   @map("aluno_id")
+  exercicioId     String   @map("exercicio_id")
+  listaId         String?  @map("lista_id")
+  respostaEnviada String   @db.Text @map("resposta_enviada")
+  correto         Boolean
+  tempoSegundos   Int?     @map("tempo_segundos")
+  tentativaNum    Int      @default(1) @map("tentativa_num")
+  revisadoManual  Boolean  @default(false) @map("revisado_manual")
+  criadoEm        DateTime @default(now()) @map("criado_em")
+
+  aluno     Aluno          @relation(fields: [alunoId], references: [id])
+  exercicio BibExercicio   @relation(fields: [exercicioId], references: [id])
+  lista     ListaExercicio? @relation(fields: [listaId], references: [id])
+
+  @@map("atividades_aluno")
 }

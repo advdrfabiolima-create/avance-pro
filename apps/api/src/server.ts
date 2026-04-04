@@ -29,6 +29,9 @@ import { conciliacaoRoutes } from './modules/conciliacao/conciliacao.routes'
 import { reguaCobrancaRoutes } from './modules/regua-cobranca/regua-cobranca.routes'
 import { bancosRoutes } from './modules/bancos/bancos.routes'
 import { startScheduler } from './modules/regua-cobranca/billing-automation.scheduler'
+import { bibliotecaRoutes } from './modules/biblioteca/biblioteca.routes'
+import { trilhasRoutes } from './modules/trilhas/trilhas.routes'
+import { listasExerciciosRoutes } from './modules/listas-exercicios/listas.routes'
 
 /**
  * Aplica colunas novas que possam ainda não existir no banco de produção.
@@ -121,6 +124,11 @@ async function main() {
 
   // Bancos / CNAB
   await app.register(bancosRoutes, { prefix: '/api/bancos' })
+
+  // Biblioteca inteligente de exercícios
+  await app.register(bibliotecaRoutes, { prefix: '/api/biblioteca' })
+  await app.register(trilhasRoutes, { prefix: '/api/trilhas' })
+  await app.register(listasExerciciosRoutes, { prefix: '/api/listas-exercicios' })
 
   // Health check
   app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }))
