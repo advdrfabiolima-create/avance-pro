@@ -718,7 +718,7 @@ function SecaoGateway() {
           </p>
         </div>
         <div className="shrink-0">
-          <a href="/financeiro?tab=configuracoes" className="text-xs text-primary hover:underline">
+          <a href="/configuracoes" className="text-xs text-primary hover:underline">
             Configurar →
           </a>
         </div>
