@@ -9,7 +9,7 @@ import { SantanderAdapter } from './adapters/santander.adapter'
 import { BbAdapter } from './adapters/bb.adapter'
 import { InterCnabAdapter } from './adapters/inter.adapter'
 
-const ADAPTERS: Map<string, CnabBankAdapter> = new Map([
+const ADAPTERS = new Map<string, CnabBankAdapter>([
   ['237', new BradescoAdapter()],
   ['341', new ItauAdapter()],
   ['033', new SantanderAdapter()],
