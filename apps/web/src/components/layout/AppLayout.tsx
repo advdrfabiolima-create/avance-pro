@@ -345,7 +345,7 @@ export default function AppLayout() {
   const perfil = usuario?.perfil ?? 'assistente'
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden" style={{ background: '#F1F5F9' }}>
       {/* Sidebar — desktop */}
       <aside className="hidden w-[240px] shrink-0 md:flex md:flex-col">
         <SidebarContent perfil={perfil} nome={nome} onLogout={logout} />
@@ -374,7 +374,7 @@ export default function AppLayout() {
       <div className="flex flex-1 flex-col overflow-hidden">
         <header
           className="flex h-[60px] shrink-0 items-center gap-3 px-4 md:px-6"
-          style={{ borderBottom: '1px solid #E2E8F0', background: '#FFFFFF' }}
+          style={{ borderBottom: '1px solid #E5E7EB', background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(8px)' }}
         >
           <button
             className="rounded-lg p-1.5 transition-colors duration-150 md:hidden hover:bg-slate-100"
