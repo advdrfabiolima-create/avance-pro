@@ -217,7 +217,7 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
                 style={{ marginBottom: '4px' }}
               >
                 <span
-                  className="text-[12px] font-semibold uppercase tracking-[0.07em] transition-colors duration-150 group-hover/hdr:text-slate-500"
+                  className="text-[14px] font-semibold uppercase tracking-[0.07em] transition-colors duration-150 group-hover/hdr:text-slate-500"
                   style={{ color: hasActive ? '#6366F1' : '#94A3B8' }}
                 >
                   {group.label}
