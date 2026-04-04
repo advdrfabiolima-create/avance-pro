@@ -7,7 +7,18 @@ function erroNegocio(statusCode: number, message: string): ErroNegocio {
 }
 
 const INCLUDE_COBRANCA = {
-  aluno: { select: { id: true, nome: true, foto: true } },
+  aluno: {
+    select: {
+      id: true,
+      nome: true,
+      foto: true,
+      responsaveis: {
+        where: { principal: true },
+        include: { responsavel: { select: { nome: true, telefone: true } } },
+        take: 1,
+      },
+    },
+  },
   pagamento: { select: { id: true, mesReferencia: true } },
 } as const
 

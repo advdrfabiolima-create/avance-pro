@@ -12,9 +12,16 @@ export interface Cobranca {
   descricao?: string
   nossoNumero?: string
   linhaDigitavel?: string
+  boletoUrl?: string | null
+  pixChave?: string | null
   criadoEm: string
   pagoEm?: string
-  aluno: { id: string; nome: string; foto?: string }
+  aluno: {
+    id: string
+    nome: string
+    foto?: string
+    responsaveis?: Array<{ responsavel: { nome: string; telefone: string | null } }>
+  }
   pagamento?: { id: string; mesReferencia: string }
 }
 

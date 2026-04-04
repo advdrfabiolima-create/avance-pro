@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Receipt, Plus, X, Send, QrCode, ExternalLink } from 'lucide-react'
+import { Receipt, Plus, X, Send, QrCode, ExternalLink, MessageSquare, Copy, Check, History, Phone, PhoneOff } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Label } from '../../components/ui/Label'
@@ -11,6 +11,12 @@ import AlunoAvatar from '../../components/shared/AlunoAvatar'
 import { cobrancasService, type Cobranca, type StatusCobranca } from '../../services/cobrancas.service'
 import { alunosService } from '../../services/alunos.service'
 import { gatewayService } from '../../services/gateway.service'
+import {
+  reguaCobrancaService,
+  montarUrlWhatsapp,
+  copiarMensagem,
+  type BillingActionLog,
+} from '../../services/reguaCobranca.service'
 
 const STATUS_LABELS: Record<StatusCobranca, string> = {
   aguardando: 'Aguardando',
@@ -152,8 +158,7 @@ function ModalNovaCobranca({ onClose, onSaved }: ModalNovaCobrancaProps) {
 
             <div className="rounded-lg border border-dashed bg-muted/30 p-3">
               <p className="text-xs text-muted-foreground text-center">
-                A integração com gateway de pagamento está preparada para configuração futura.
-                Atualmente, as cobranças são gerenciadas manualmente.
+                Após criar, use o botão <strong>WhatsApp</strong> na linha da cobrança para enviar a mensagem ao responsável.
               </p>
             </div>
 
@@ -285,6 +290,233 @@ function ModalEnviarAsaas({ cobranca, onClose, onSent }: ModalEnviarAsaasProps) 
   )
 }
 
+// ─── Template padrão WhatsApp ─────────────────────────────────────────────────
+const TEMPLATE_WPP =
+  'Olá, {{nome_responsavel}}! A mensalidade de *{{nome_aluno}}*, no valor de *{{valor}}*, vence em *{{vencimento}}*. Caso precise dos dados de pagamento, é só responder esta mensagem.'
+
+// ─── Modal WhatsApp ───────────────────────────────────────────────────────────
+
+interface ModalWhatsappProps {
+  cobranca: Cobranca
+  onClose: () => void
+  onEnviado: () => void
+}
+
+function ModalWhatsapp({ cobranca, onClose, onEnviado }: ModalWhatsappProps) {
+  const responsavel = cobranca.aluno.responsaveis?.[0]?.responsavel ?? null
+  const telefone = responsavel?.telefone ?? null
+
+  const [mensagem, setMensagem] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [copiado, setCopiado] = useState(false)
+  const [registrado, setRegistrado] = useState(false)
+
+  useEffect(() => {
+    reguaCobrancaService
+      .renderTemplate(TEMPLATE_WPP, cobranca.id)
+      .then((res) => setMensagem((res.data as any)?.data?.rendered ?? TEMPLATE_WPP))
+      .catch(() => {
+        // fallback local sem chamada ao servidor
+        const venc = new Date(cobranca.vencimento).toLocaleDateString('pt-BR')
+        const valor = Number(cobranca.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+        setMensagem(
+          `Olá, ${responsavel?.nome ?? 'responsável'}! A mensalidade de *${cobranca.aluno.nome}*, no valor de *${valor}*, vence em *${venc}*. Caso precise dos dados de pagamento, é só responder.`,
+        )
+      })
+      .finally(() => setLoading(false))
+  }, [cobranca, responsavel])
+
+  async function registrarAcao(actionType: string) {
+    if (registrado) return
+    try {
+      await reguaCobrancaService.logAction({
+        cobrancaId: cobranca.id,
+        actionType,
+        channel: 'whatsapp',
+        messageSnapshot: mensagem,
+        status: 'enviado',
+      })
+      setRegistrado(true)
+      onEnviado()
+    } catch { /* silencioso */ }
+  }
+
+  async function handleAbrirWhatsapp() {
+    if (!telefone) return
+    window.open(montarUrlWhatsapp(telefone, mensagem), '_blank')
+    await registrarAcao('whatsapp_sent')
+  }
+
+  async function handleCopiar() {
+    await copiarMensagem(mensagem)
+    setCopiado(true)
+    setTimeout(() => setCopiado(false), 2500)
+    await registrarAcao('whatsapp_prepared')
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-md rounded-xl border bg-card shadow-lg">
+        <div className="flex items-center justify-between border-b px-6 py-4">
+          <h2 className="flex items-center gap-2 text-base font-semibold">
+            <MessageSquare size={16} className="text-green-600" />
+            Enviar por WhatsApp
+          </h2>
+          <button onClick={onClose} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="space-y-4 px-6 py-5">
+          {/* Info cobrança */}
+          <div className="rounded-lg bg-muted/40 px-4 py-3 space-y-1">
+            <p className="text-sm"><span className="text-muted-foreground">Aluno: </span><span className="font-medium">{cobranca.aluno.nome}</span></p>
+            <p className="text-sm"><span className="text-muted-foreground">Valor: </span><span className="font-medium">{Number(cobranca.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>
+            <p className="text-sm"><span className="text-muted-foreground">Vencimento: </span><span className="font-medium">{new Date(cobranca.vencimento).toLocaleDateString('pt-BR')}</span></p>
+          </div>
+
+          {/* Responsável / telefone */}
+          <div className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm ${telefone ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
+            {telefone
+              ? <Phone size={14} className="text-green-600 shrink-0" />
+              : <PhoneOff size={14} className="text-orange-600 shrink-0" />}
+            <span className={telefone ? 'text-green-800' : 'text-orange-800'}>
+              {telefone
+                ? <>{responsavel?.nome ?? 'Responsável'} — <strong>{telefone}</strong></>
+                : <>Nenhum telefone cadastrado para o responsável. Copie a mensagem e envie manualmente.</>
+              }
+            </span>
+          </div>
+
+          {/* Mensagem gerada */}
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Mensagem</p>
+            {loading ? (
+              <div className="h-20 rounded-lg bg-muted animate-pulse" />
+            ) : (
+              <textarea
+                className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                rows={4}
+                value={mensagem}
+                onChange={(e) => setMensagem(e.target.value)}
+              />
+            )}
+            <p className="text-xs text-muted-foreground">Edite a mensagem se necessário antes de enviar.</p>
+          </div>
+
+          {registrado && (
+            <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-sm text-green-700">
+              <Check size={14} /> Ação registrada no histórico.
+            </div>
+          )}
+
+          {/* Ações */}
+          <div className="flex gap-2 flex-wrap justify-end border-t pt-4">
+            <Button variant="outline" size="sm" onClick={handleCopiar} disabled={loading} className="gap-1.5">
+              {copiado ? <Check size={13} className="text-green-600" /> : <Copy size={13} />}
+              {copiado ? 'Copiado!' : 'Copiar mensagem'}
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleAbrirWhatsapp}
+              disabled={loading || !telefone}
+              className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
+              title={!telefone ? 'Sem telefone cadastrado' : undefined}
+            >
+              <MessageSquare size={13} />
+              Abrir WhatsApp
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Modal Histórico de ações ─────────────────────────────────────────────────
+
+interface ModalHistoricoProps {
+  cobranca: Cobranca
+  onClose: () => void
+}
+
+const ACTION_LABELS: Record<string, string> = {
+  whatsapp_sent: 'WhatsApp enviado',
+  whatsapp_prepared: 'Mensagem copiada',
+  internal_alert: 'Alerta interno',
+  manual: 'Ação manual',
+  ignored: 'Ignorada',
+  auto_error: 'Erro automático',
+}
+
+function ModalHistorico({ cobranca, onClose }: ModalHistoricoProps) {
+  const [logs, setLogs] = useState<BillingActionLog[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    reguaCobrancaService
+      .historicoPorCobranca(cobranca.id)
+      .then((res) => setLogs((res.data as any)?.data ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [cobranca.id])
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-md rounded-xl border bg-card shadow-lg">
+        <div className="flex items-center justify-between border-b px-6 py-4">
+          <h2 className="flex items-center gap-2 text-base font-semibold">
+            <History size={16} />
+            Histórico — {cobranca.aluno.nome}
+          </h2>
+          <button onClick={onClose} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="px-6 py-4 max-h-80 overflow-y-auto">
+          {loading && <p className="text-sm text-muted-foreground text-center py-6">Carregando...</p>}
+          {!loading && logs.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-6">Nenhuma ação registrada para esta cobrança.</p>
+          )}
+          {!loading && logs.length > 0 && (
+            <div className="space-y-3">
+              {logs.map((log) => (
+                <div key={log.id} className="rounded-lg border bg-muted/30 px-3 py-2.5 space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium">{ACTION_LABELS[log.actionType] ?? log.actionType}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(log.triggeredAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground capitalize">{log.channel}</span>
+                    {log.triggeredBy && (
+                      <span className="text-xs text-muted-foreground">· {log.triggeredBy}</span>
+                    )}
+                    <span className={`ml-auto text-[10px] font-semibold rounded-full px-1.5 py-0.5 border ${
+                      log.status === 'enviado' ? 'bg-green-50 text-green-700 border-green-200'
+                      : log.status === 'erro' ? 'bg-red-50 text-red-700 border-red-200'
+                      : 'bg-gray-50 text-gray-600 border-gray-200'
+                    }`}>{log.status}</span>
+                  </div>
+                  {log.messageSnapshot && (
+                    <p className="text-xs text-muted-foreground line-clamp-2 italic">"{log.messageSnapshot}"</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="border-t px-6 py-3 flex justify-end">
+          <Button variant="outline" size="sm" onClick={onClose}>Fechar</Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const PAGE_SIZE = 15
 
 export default function CobrancasPage({ embedded = false }: { embedded?: boolean }) {
@@ -296,6 +528,8 @@ export default function CobrancasPage({ embedded = false }: { embedded?: boolean
   const [modalOpen, setModalOpen] = useState(false)
   const [gatewayAtivo, setGatewayAtivo] = useState(false)
   const [enviando, setEnviando] = useState<Cobranca | null>(null)
+  const [wppCobranca, setWppCobranca] = useState<Cobranca | null>(null)
+  const [historicoCobranca, setHistoricoCobranca] = useState<Cobranca | null>(null)
 
   const fetchData = useCallback(async (status: string, p: number) => {
     setLoading(true)
@@ -420,6 +654,19 @@ export default function CobrancasPage({ embedded = false }: { embedded?: boolean
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        {/* WhatsApp — para cobranças em aberto */}
+                        {c.status !== 'paga' && c.status !== 'cancelada' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setWppCobranca(c)}
+                            title="Enviar cobrança por WhatsApp"
+                            className="gap-1 text-green-700 border-green-300 hover:bg-green-50"
+                          >
+                            <MessageSquare size={13} />
+                            <span className="hidden sm:inline">WhatsApp</span>
+                          </Button>
+                        )}
                         {gatewayAtivo && c.status === 'aguardando' && (
                           <Button variant="outline" size="sm" onClick={() => setEnviando(c)} title="Enviar via Asaas">
                             <Send size={13} /> Enviar
@@ -435,6 +682,16 @@ export default function CobrancasPage({ embedded = false }: { embedded?: boolean
                             Cancelar
                           </Button>
                         )}
+                        {/* Histórico de ações */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setHistoricoCobranca(c)}
+                          title="Ver histórico de ações"
+                          className="text-muted-foreground px-2"
+                        >
+                          <History size={13} />
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -481,6 +738,19 @@ export default function CobrancasPage({ embedded = false }: { embedded?: boolean
           cobranca={enviando}
           onClose={() => setEnviando(null)}
           onSent={() => { void fetchData(filtroStatus, page) }}
+        />
+      )}
+      {wppCobranca && (
+        <ModalWhatsapp
+          cobranca={wppCobranca}
+          onClose={() => setWppCobranca(null)}
+          onEnviado={() => void fetchData(filtroStatus, page)}
+        />
+      )}
+      {historicoCobranca && (
+        <ModalHistorico
+          cobranca={historicoCobranca}
+          onClose={() => setHistoricoCobranca(null)}
         />
       )}
     </div>
