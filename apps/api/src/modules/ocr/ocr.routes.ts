@@ -4,6 +4,7 @@ import { autenticar } from '../../shared/middlewares/auth'
 import { OcrSpaceProvider } from '../../shared/ocrspace.provider'
 import { parseOcrText } from '../../shared/ocr-parser'
 import type { QuestaoInfo } from '../../shared/ocr-parser'
+import { detectarRespostasGemini } from '../../shared/gemini.ocr.service'
 
 const ocrProvider = new OcrSpaceProvider()
 
@@ -83,28 +84,53 @@ export async function ocrRoutes(app: FastifyInstance): Promise<void> {
 
       await prisma.tentativaOcr.update({ where: { id }, data: { status: 'processando', erroMensagem: null } })
 
-      // ── Etapa 1: OCR ─────────────────────────────────────────────────────────
-      let textoOcr: string
-      try {
-        const result = await ocrProvider.recognize(tentativaOcr.arquivoBase64, tentativaOcr.tipoArquivo)
-        textoOcr = result.text
-      } catch (err: any) {
-        await prisma.tentativaOcr.update({
-          where: { id },
-          data: { status: 'erro', erroMensagem: err?.message ?? 'Erro no processamento OCR' },
-        })
-        return reply.status(502).send({ success: false, message: `Falha no OCR: ${err?.message}` })
-      }
-
-      // ── Etapa 2: Parsing heurístico ──────────────────────────────────────────
+      // ── Etapa 1 + 2: Gemini Vision (ou fallback OCR heurístico) ─────────────
       const questoesInfo: QuestaoInfo[] = tentativaOcr.exercicio.questoes.map((q) => ({
         ordem: q.ordem,
         tipo: q.tipo as 'objetiva' | 'numerica' | 'discursiva',
         id: q.id,
       }))
 
-      const detectadas = parseOcrText(textoOcr, questoesInfo)
-      const detMap = new Map(detectadas.map((d) => [d.questaoOrdem, d]))
+      let textoOcr: string
+      let detMap: Map<number, { letraDetectada: string | null; valorDetectado: number | null; confianca: number | null }>
+
+      const useGemini = !!process.env['GOOGLE_API_KEY']
+
+      if (useGemini) {
+        console.log('[OCR] Usando Google Gemini Vision')
+        try {
+          const respostas = await detectarRespostasGemini(
+            tentativaOcr.arquivoBase64,
+            tentativaOcr.tipoArquivo,
+            questoesInfo,
+          )
+          textoOcr = JSON.stringify(respostas)
+          detMap = new Map(respostas.map((r) => [r.questaoOrdem, r]))
+        } catch (err: any) {
+          console.error('[OCR] Erro no Gemini:', err?.message)
+          await prisma.tentativaOcr.update({
+            where: { id },
+            data: { status: 'erro', erroMensagem: err?.message ?? 'Erro no processamento Gemini' },
+          })
+          return reply.status(502).send({ success: false, message: `Falha no OCR: ${err?.message}` })
+        }
+      } else {
+        console.log('[OCR] GOOGLE_API_KEY não configurada — usando OCR Space + heurística')
+        let textoRaw: string
+        try {
+          const result = await ocrProvider.recognize(tentativaOcr.arquivoBase64, tentativaOcr.tipoArquivo)
+          textoRaw = result.text
+        } catch (err: any) {
+          await prisma.tentativaOcr.update({
+            where: { id },
+            data: { status: 'erro', erroMensagem: err?.message ?? 'Erro no processamento OCR' },
+          })
+          return reply.status(502).send({ success: false, message: `Falha no OCR: ${err?.message}` })
+        }
+        textoOcr = textoRaw
+        const detectadas = parseOcrText(textoOcr, questoesInfo)
+        detMap = new Map(detectadas.map((d) => [d.questaoOrdem, d]))
+      }
 
       // ── Etapa 3: Criar/recriar uma linha por questão ─────────────────────────
       // Sempre cria registro para TODAS as questões OCR-suportadas.
