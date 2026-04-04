@@ -139,7 +139,7 @@ function ModalRecorrencia({ onClose, onSaved }: ModalRecorrenciaProps) {
   )
 }
 
-export default function RecorrenciasPage() {
+export default function RecorrenciasPage({ embedded = false }: { embedded?: boolean }) {
   const [recorrencias, setRecorrencias] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -172,15 +172,17 @@ export default function RecorrenciasPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Recorrências"
-        subtitle="Configurações de cobranças recorrentes"
-        actions={
-          <Button onClick={() => setModalOpen(true)}>
-            <Plus size={14} /> Nova Recorrência
-          </Button>
-        }
-      />
+      {!embedded && (
+        <PageHeader
+          title="Recorrências"
+          subtitle="Configurações de cobranças recorrentes"
+          actions={
+            <Button onClick={() => setModalOpen(true)}>
+              <Plus size={14} /> Nova Recorrência
+            </Button>
+          }
+        />
+      )}
 
       <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
         <p className="text-sm text-amber-700">

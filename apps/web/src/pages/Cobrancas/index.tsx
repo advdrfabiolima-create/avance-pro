@@ -287,7 +287,7 @@ function ModalEnviarAsaas({ cobranca, onClose, onSent }: ModalEnviarAsaasProps) 
 
 const PAGE_SIZE = 15
 
-export default function CobrancasPage() {
+export default function CobrancasPage({ embedded = false }: { embedded?: boolean }) {
   const [result, setResult] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -344,15 +344,17 @@ export default function CobrancasPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Cobranças"
-        subtitle="Gerencie boletos e cobranças dos alunos"
-        actions={
-          <Button onClick={() => setModalOpen(true)}>
-            <Plus size={14} /> Nova Cobrança
-          </Button>
-        }
-      />
+      {!embedded && (
+        <PageHeader
+          title="Cobranças"
+          subtitle="Gerencie boletos e cobranças dos alunos"
+          actions={
+            <Button onClick={() => setModalOpen(true)}>
+              <Plus size={14} /> Nova Cobrança
+            </Button>
+          }
+        />
+      )}
 
       {!gatewayAtivo && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 flex items-center justify-between gap-3">

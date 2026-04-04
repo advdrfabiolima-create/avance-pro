@@ -30,6 +30,9 @@ const CobrancasPage = lazy(() => import('./pages/Cobrancas/index'))
 const RecorrenciasPage = lazy(() => import('./pages/Recorrencias/index'))
 const RelatoriosPage = lazy(() => import('./pages/Relatorios/index'))
 
+// Financeiro unificado — Fase 5
+const FinanceiroPage = lazy(() => import('./pages/Financeiro/index'))
+
 // Novas páginas — Fase 3
 const NotasFiscaisPage = lazy(() => import('./pages/NotasFiscais/index'))
 const ImportacoesPage = lazy(() => import('./pages/Importacoes/index'))
@@ -84,12 +87,14 @@ export default function App() {
             {/* Equipe */}
             <Route path="/auxiliares" element={<AuxiliaresPage />} />
 
-            {/* Financeiro */}
-            <Route path="/pagamentos" element={<PagamentosPage />} />
-            <Route path="/movimentos" element={<MovimentosPage />} />
-            <Route path="/cobrancas" element={<CobrancasPage />} />
-            <Route path="/recorrencias" element={<RecorrenciasPage />} />
-            <Route path="/relatorios" element={<RelatoriosPage />} />
+            {/* Financeiro — página unificada com tabs */}
+            <Route path="/financeiro" element={<FinanceiroPage />} />
+            {/* Aliases de compatibilidade — redirecionam para o financeiro na aba correta */}
+            <Route path="/pagamentos" element={<Navigate to="/financeiro?tab=cobrancas" replace />} />
+            <Route path="/movimentos" element={<Navigate to="/financeiro?tab=movimentacoes" replace />} />
+            <Route path="/cobrancas" element={<Navigate to="/financeiro?tab=cobrancas" replace />} />
+            <Route path="/recorrencias" element={<Navigate to="/financeiro?tab=recorrencia" replace />} />
+            <Route path="/relatorios" element={<Navigate to="/financeiro?tab=relatorios" replace />} />
 
             {/* Avançado */}
             <Route path="/notas-fiscais" element={<NotasFiscaisPage />} />

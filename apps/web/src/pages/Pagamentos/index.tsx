@@ -354,7 +354,7 @@ function ModalGerarMensalidades({ onClose, onGerado }: ModalGerarProps) {
 
 const PAGE_SIZE = 15
 
-export default function PagamentosPage() {
+export default function PagamentosPage({ embedded = false }: { embedded?: boolean }) {
   const location = useLocation()
 
   // Lê ?status=vencido da URL na montagem inicial
@@ -417,15 +417,17 @@ export default function PagamentosPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Pagamentos"
-        subtitle="Gerencie as mensalidades e cobranças dos alunos"
-        actions={
-          <Button onClick={() => setGerandoMensalidades(true)}>
-            Gerar Mensalidades
-          </Button>
-        }
-      />
+      {!embedded && (
+        <PageHeader
+          title="Mensalidades"
+          subtitle="Gerencie as mensalidades dos alunos"
+          actions={
+            <Button onClick={() => setGerandoMensalidades(true)}>
+              Gerar Mensalidades
+            </Button>
+          }
+        />
+      )}
 
       {/* Filtros */}
       <div className="flex flex-wrap items-end gap-3">

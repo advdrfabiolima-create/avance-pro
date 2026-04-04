@@ -388,6 +388,8 @@ model Cobranca {
   nossoNumero    String?        @map("nosso_numero") @db.VarChar(100)
   linhaDigitavel String?        @map("linha_digitavel") @db.VarChar(200)
   asaasId        String?        @map("asaas_id") @db.VarChar(100)
+  provider       String?        @db.VarChar(20)
+  tipo           String?        @db.VarChar(20)
   pixQrCode      String?        @map("pix_qr_code") @db.Text
   pixChave       String?        @map("pix_chave") @db.Text
   boletoUrl      String?        @map("boleto_url") @db.Text

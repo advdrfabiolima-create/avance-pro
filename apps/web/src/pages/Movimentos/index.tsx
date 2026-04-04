@@ -186,7 +186,7 @@ function ModalMovimento({ onClose, onSaved }: ModalMovimentoProps) {
 
 const PAGE_SIZE = 15
 
-export default function MovimentosPage() {
+export default function MovimentosPage({ embedded = false }: { embedded?: boolean }) {
   const [result, setResult] = useState<any>(null)
   const [resumo, setResumo] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -236,15 +236,17 @@ export default function MovimentosPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Movimento Financeiro"
-        subtitle="Controle de entradas e saídas da unidade"
-        actions={
-          <Button onClick={() => setModalOpen(true)}>
-            <Plus size={14} /> Novo Movimento
-          </Button>
-        }
-      />
+      {!embedded && (
+        <PageHeader
+          title="Movimentações"
+          subtitle="Controle de entradas e saídas da unidade"
+          actions={
+            <Button onClick={() => setModalOpen(true)}>
+              <Plus size={14} /> Novo Movimento
+            </Button>
+          }
+        />
+      )}
 
       {/* Cards resumo */}
       {resumo && (

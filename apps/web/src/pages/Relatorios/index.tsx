@@ -277,7 +277,7 @@ function AbaInadimplencia() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function RelatoriosPage() {
+export default function RelatoriosPage({ embedded = false }: { embedded?: boolean }) {
   const { inicio, fim } = mesAtual()
   const [abaAtiva, setAbaAtiva] = useState<AbaAtiva>('resumo')
   const [dataInicio, setDataInicio] = useState(inicio)
@@ -292,15 +292,17 @@ export default function RelatoriosPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Relatórios Financeiros"
-        subtitle="Visão consolidada das finanças da unidade"
-        actions={
-          <Button variant="outline" onClick={() => window.print()}>
-            <Printer size={14} /> Imprimir / PDF
-          </Button>
-        }
-      />
+      {!embedded && (
+        <PageHeader
+          title="Relatórios Financeiros"
+          subtitle="Visão consolidada das finanças da unidade"
+          actions={
+            <Button variant="outline" onClick={() => window.print()}>
+              <Printer size={14} /> Imprimir / PDF
+            </Button>
+          }
+        />
+      )}
 
       {/* Filtro de período */}
       <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-card px-4 py-4">

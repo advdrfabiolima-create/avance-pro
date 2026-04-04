@@ -2,8 +2,8 @@ import type { FastifyInstance } from 'fastify'
 import { autenticar, apenasAdmin } from '../../shared/middlewares/auth'
 import { cobrancaService } from './cobrancas.service'
 import { criarCobrancaSchema, atualizarCobrancaSchema, filtrosCobrancaSchema } from './cobrancas.schema'
+import { billingCore } from '../../shared/billing/billing.core'
 import { prisma } from '@kumon-advance/db'
-import { asaasGetOrCreateCustomer, asaasCriarCobranca, asaasBuscarPixQrCode } from '../../shared/asaas.service'
 import { notificacaoService } from '../notificacoes/notificacoes.service'
 
 interface ErroNegocio { statusCode: number; message: string }
@@ -89,7 +89,7 @@ export async function cobrancasRoutes(app: FastifyInstance): Promise<void> {
     }
   })
 
-  // POST /:id/enviar — envia cobrança via Asaas (PIX ou BOLETO)
+  // POST /:id/enviar — envia cobrança via Billing Core (provider configurado)
   app.post('/:id/enviar', { preHandler: apenasAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const { tipo } = (request.body ?? {}) as { tipo?: 'PIX' | 'BOLETO' }
@@ -99,7 +99,17 @@ export async function cobrancasRoutes(app: FastifyInstance): Promise<void> {
     }
 
     try {
-      const cobranca = await prisma.cobranca.findUnique({
+      const paymentMethod = tipo === 'PIX' ? 'pix' : 'boleto'
+      const result = await billingCore.enviarCobranca(id, paymentMethod)
+
+      // Busca cobrança atualizada para retornar ao frontend
+      const atualizada = await prisma.cobranca.findUnique({
+        where: { id },
+        include: { aluno: { select: { id: true, nome: true, foto: true } } },
+      })
+
+      // Notificação ao responsável (fire-and-forget)
+      const cobrancaComResp = await prisma.cobranca.findUnique({
         where: { id },
         include: {
           aluno: {
@@ -113,91 +123,25 @@ export async function cobrancasRoutes(app: FastifyInstance): Promise<void> {
           },
         },
       })
-      if (!cobranca) return reply.status(404).send({ success: false, error: 'Cobrança não encontrada' })
-      if (cobranca.status === 'paga' || cobranca.status === 'cancelada') {
-        return reply.status(422).send({ success: false, error: `Cobrança já está ${cobranca.status}` })
-      }
-
-      // Pegar dados do responsável principal para criar customer no Asaas
-      const resp = cobranca.aluno.responsaveis[0]?.responsavel
-      const customerParams = {
-        nome: resp?.nome ?? cobranca.aluno.nome,
-        email: resp?.email ?? `${cobranca.aluno.nome.toLowerCase().replace(/\s+/g, '.')}@semEmail.com`,
-        telefone: resp?.telefone,
-        cpf: resp?.cpf ?? undefined,
-      }
-
-      // Criar ou buscar customer no Asaas
-      const customerId = await asaasGetOrCreateCustomer(customerParams)
-
-      // Criar cobrança no Asaas
-      const vencimento = cobranca.vencimento instanceof Date
-        ? cobranca.vencimento.toISOString().slice(0, 10)
-        : String(cobranca.vencimento).slice(0, 10)
-
-      const pagamento = await asaasCriarCobranca({
-        customerId,
-        valor: parseFloat(cobranca.valor.toString()),
-        vencimento,
-        descricao: cobranca.descricao ?? `Mensalidade — ${cobranca.aluno.nome}`,
-        tipo,
-      })
-
-      // Se PIX, buscar QR Code
-      let pixQrCode: string | null = null
-      let pixChave: string | null = null
-      if (tipo === 'PIX') {
-        try {
-          const pix = await asaasBuscarPixQrCode(pagamento.id)
-          pixQrCode = pix.encodedImage
-          pixChave = pix.payload
-        } catch { /* QR code pode demorar alguns segundos */ }
-      }
-
-      // Atualizar cobrança local
-      const atualizada = await prisma.cobranca.update({
-        where: { id },
-        data: {
-          status: 'enviada',
-          asaasId: pagamento.id,
-          nossoNumero: pagamento.nossoNumero ?? null,
-          linhaDigitavel: pagamento.bankSlipUrl ?? null,
-          boletoUrl: pagamento.bankSlipUrl ?? null,
-          pixQrCode,
-          pixChave,
-        },
-        include: { aluno: { select: { id: true, nome: true, foto: true } } },
-      })
-
-      // Enviar notificação por e-mail e WhatsApp ao responsável
-      if (resp?.email && resp?.telefone) {
-        const valorFormatado = parseFloat(cobranca.valor.toString()).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-        const vencFormatado = new Date(vencimento + 'T12:00:00').toLocaleDateString('pt-BR')
-        const descricaoCobranca = cobranca.descricao ?? `Mensalidade — ${cobranca.aluno.nome}`
-
-        let mensagem = `Olá, ${resp.nome}!\n\nFoi gerada uma cobrança para o(a) aluno(a) *${cobranca.aluno.nome}*.\n\n📋 *${descricaoCobranca}*\n💰 Valor: ${valorFormatado}\n📅 Vencimento: ${vencFormatado}\n`
-
-        if (tipo === 'BOLETO' && pagamento.bankSlipUrl) {
-          mensagem += `\n🔗 Boleto: ${pagamento.bankSlipUrl}`
-        } else if (tipo === 'PIX' && pixChave) {
-          mensagem += `\n📱 Pix copia e cola:\n${pixChave}`
-        }
-
+      const resp = cobrancaComResp?.aluno?.responsaveis[0]?.responsavel
+      if (resp?.email && resp?.telefone && cobrancaComResp) {
+        const valorFmt = parseFloat(cobrancaComResp.valor.toString()).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+        const vencFmt = new Date(cobrancaComResp.vencimento.toISOString().slice(0, 10) + 'T12:00:00').toLocaleDateString('pt-BR')
+        const desc = cobrancaComResp.descricao ?? `Mensalidade — ${cobrancaComResp.aluno.nome}`
+        let msg = `Olá, ${resp.nome}!\n\nFoi gerada uma cobrança para *${cobrancaComResp.aluno.nome}*.\n\n📋 *${desc}*\n💰 ${valorFmt}\n📅 Vencimento: ${vencFmt}\n`
+        if (tipo === 'BOLETO' && result.boletoUrl) msg += `\n🔗 Boleto: ${result.boletoUrl}`
+        else if (tipo === 'PIX' && result.pixChave) msg += `\n📱 Pix copia e cola:\n${result.pixChave}`
         notificacaoService.enviar(
           { nome: resp.nome, email: resp.email, telefone: resp.telefone },
-          `Cobrança gerada — ${descricaoCobranca}`,
-          mensagem,
-        ).catch((err: unknown) => {
-          console.error('[cobrancas] Falha ao enviar notificação:', err)
-        })
+          `Cobrança gerada — ${desc}`,
+          msg,
+        ).catch((err: unknown) => console.error('[cobrancas] Falha ao enviar notificação:', err))
       }
 
       return reply.send({ success: true, data: atualizada })
     } catch (err) {
       if (isErroNegocio(err)) return reply.status(err.statusCode).send({ success: false, error: err.message })
-      const msg = (err as any)?.response?.data?.errors?.[0]?.description
-        ?? (err as any)?.message
-        ?? 'Erro ao enviar cobrança via Asaas'
+      const msg = (err as any)?.message ?? 'Erro ao enviar cobrança'
       return reply.status(500).send({ success: false, error: msg })
     }
   })
