@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft, Pencil, BookOpen, Users, GraduationCap,
   Clock, Target, TrendingUp, AlertTriangle, Calendar, BookMarked, Play, AlertCircle,
+  DollarSign, CheckCircle2, XCircle, Hourglass,
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
@@ -12,6 +13,7 @@ import type { StatusOperacional } from '../../components/shared/StatusBadge'
 import { alunosService } from '../../services/alunos.service'
 import { tentativasService, type ErroRecorrente } from '../../services/tentativas.service'
 import { exerciciosService, type Exercicio } from '../../services/exercicios.service'
+import { cobrancasService, type Cobranca, type StatusCobranca } from '../../services/cobrancas.service'
 import AlunoFormModal from './AlunoFormModal'
 import MatriculaModal from './MatriculaModal'
 import AlunoEvolucao from './AlunoEvolucao'
@@ -428,6 +430,144 @@ function ExerciciosAluno({ alunoId }: { alunoId: string }) {
   )
 }
 
+// ─── Histórico Financeiro ─────────────────────────────────────────────────────
+
+const STATUS_COBRANCA_LABEL: Record<StatusCobranca, string> = {
+  aguardando: 'Aguardando',
+  enviada: 'Enviada',
+  paga: 'Paga',
+  vencida: 'Vencida',
+  cancelada: 'Cancelada',
+}
+
+const STATUS_COBRANCA_VARIANT: Record<StatusCobranca, 'success' | 'warning' | 'destructive' | 'secondary' | 'stagnant'> = {
+  aguardando: 'warning',
+  enviada: 'stagnant',
+  paga: 'success',
+  vencida: 'destructive',
+  cancelada: 'secondary',
+}
+
+function formatarMoeda(valor: number | string): string {
+  return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+function HistoricoFinanceiro({ alunoId }: { alunoId: string }) {
+  const [cobrancas, setCobrancas] = useState<Cobranca[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    cobrancasService
+      .listar({ alunoId, pageSize: 50 })
+      .then((res) => {
+        const items = (res.data as any)?.data?.data ?? (res.data as any)?.data ?? []
+        setCobrancas(items)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [alunoId])
+
+  const totalCobrado = cobrancas
+    .filter((c) => c.status !== 'cancelada')
+    .reduce((acc, c) => acc + Number(c.valor), 0)
+
+  const totalPago = cobrancas
+    .filter((c) => c.status === 'paga')
+    .reduce((acc, c) => acc + Number(c.valor), 0)
+
+  const totalPendente = cobrancas
+    .filter((c) => c.status === 'aguardando' || c.status === 'enviada' || c.status === 'vencida')
+    .reduce((acc, c) => acc + Number(c.valor), 0)
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <DollarSign className="h-4 w-4" />
+          Histórico Financeiro
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Resumo */}
+        {!loading && cobrancas.length > 0 && (
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-lg bg-muted/50 px-3 py-2.5 text-center">
+              <p className="text-xs text-muted-foreground mb-0.5">Total cobrado</p>
+              <p className="text-sm font-bold">{formatarMoeda(totalCobrado)}</p>
+            </div>
+            <div className="rounded-lg bg-green-50 px-3 py-2.5 text-center">
+              <p className="text-xs text-green-700 mb-0.5 flex items-center justify-center gap-1">
+                <CheckCircle2 size={11} /> Pago
+              </p>
+              <p className="text-sm font-bold text-green-700">{formatarMoeda(totalPago)}</p>
+            </div>
+            <div className="rounded-lg bg-orange-50 px-3 py-2.5 text-center">
+              <p className="text-xs text-orange-700 mb-0.5 flex items-center justify-center gap-1">
+                <Hourglass size={11} /> Pendente
+              </p>
+              <p className="text-sm font-bold text-orange-700">{formatarMoeda(totalPendente)}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Tabela */}
+        {loading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-10 rounded bg-muted animate-pulse" />
+            ))}
+          </div>
+        ) : cobrancas.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">
+            Nenhuma cobrança registrada
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="pb-2 text-left font-medium text-muted-foreground text-xs">Vencimento</th>
+                  <th className="pb-2 text-left font-medium text-muted-foreground text-xs">Descrição</th>
+                  <th className="pb-2 text-right font-medium text-muted-foreground text-xs">Valor</th>
+                  <th className="pb-2 text-center font-medium text-muted-foreground text-xs">Status</th>
+                  <th className="pb-2 text-left font-medium text-muted-foreground text-xs hidden sm:table-cell">Pago em</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cobrancas.map((c) => {
+                  const vencida = c.status === 'vencida'
+                  return (
+                    <tr key={c.id} className="border-b last:border-0">
+                      <td className={`py-2.5 pr-3 whitespace-nowrap ${vencida ? 'text-destructive font-medium' : ''}`}>
+                        {formatarData(c.vencimento)}
+                        {vencida && <XCircle size={12} className="inline ml-1 text-destructive" />}
+                      </td>
+                      <td className="py-2.5 pr-3 text-muted-foreground max-w-[160px] truncate">
+                        {c.descricao ?? '—'}
+                      </td>
+                      <td className="py-2.5 pr-3 text-right font-medium tabular-nums whitespace-nowrap">
+                        {formatarMoeda(c.valor)}
+                      </td>
+                      <td className="py-2.5 px-2 text-center">
+                        <Badge variant={STATUS_COBRANCA_VARIANT[c.status]}>
+                          {STATUS_COBRANCA_LABEL[c.status]}
+                        </Badge>
+                      </td>
+                      <td className="py-2.5 text-muted-foreground hidden sm:table-cell">
+                        {c.pagoEm ? formatarData(c.pagoEm) : '—'}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 function SkeletonDetalhe() {
@@ -644,6 +784,9 @@ export default function AlunoDetalhePage() {
 
           {/* Histórico de sessões */}
           <HistoricoSessoes sessoes={sessoes} />
+
+          {/* Histórico financeiro */}
+          <HistoricoFinanceiro alunoId={aluno.id} />
         </div>
 
         {/* Coluna lateral */}
