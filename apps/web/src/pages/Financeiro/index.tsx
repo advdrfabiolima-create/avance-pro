@@ -20,6 +20,7 @@ import RelatoriosPage from '../Relatorios/index'
 
 type TabId = 'visao-geral' | 'cobrancas' | 'movimentacoes' | 'recorrencia' | 'conciliacao' | 'relatorios' | 'regua' | 'bancos' | 'configuracoes'
 type CobrancasSubTab = 'mensalidades' | 'avulsas' | 'inadimplencia'
+const VALID_COBRANCAS_SUBS: CobrancasSubTab[] = ['mensalidades', 'avulsas', 'inadimplencia']
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'visao-geral',     label: 'Visão Geral',    icon: <LayoutDashboard size={14} /> },
@@ -49,7 +50,13 @@ function resolveTab(param: string | null): TabId {
 // Sub-navegação: Mensalidades | Cobranças Avulsas
 
 function CobrancasTab() {
-  const [sub, setSub] = useState<CobrancasSubTab>('mensalidades')
+  const [searchParams] = useSearchParams()
+  const subParam = searchParams.get('sub')
+  const initialSub: CobrancasSubTab =
+    subParam && (VALID_COBRANCAS_SUBS as string[]).includes(subParam)
+      ? (subParam as CobrancasSubTab)
+      : 'mensalidades'
+  const [sub, setSub] = useState<CobrancasSubTab>(initialSub)
 
   return (
     <div className="space-y-4">

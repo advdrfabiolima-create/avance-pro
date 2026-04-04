@@ -336,7 +336,7 @@ function InadimplenciaCard({ inadimplentes }: { inadimplentes: Inadimplente[] })
         <div className="flex items-center justify-between">
           <CardTitle className="text-base">Inadimplência</CardTitle>
           {inadimplentes.length > 0 && (
-            <Link to="/pagamentos?status=vencido" className="text-xs text-primary hover:underline">
+            <Link to="/financeiro?tab=cobrancas&sub=inadimplencia" className="text-xs text-primary hover:underline">
               Ver todos ({inadimplentes.length})
             </Link>
           )}
