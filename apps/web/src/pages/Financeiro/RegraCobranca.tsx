@@ -46,10 +46,10 @@ const EVENT_LABEL: Record<EventType, string> = {
 }
 
 const CHANNEL_LABEL: Record<Channel, string> = {
-  whatsapp: 'WhatsApp assistido',
+  whatsapp: 'WhatsApp',
   internal: 'Alerta interno',
-  email: 'E-mail (em breve)',
-  webhook: 'Webhook (em breve)',
+  email: 'E-mail',
+  webhook: 'Webhook',
 }
 
 const CHANNEL_ICON: Record<Channel, React.ReactNode> = {
@@ -200,10 +200,10 @@ function ModalRegra({ rule, onClose, onSaved }: ModalRegraProps) {
               onChange={(e) => setChannel(e.target.value as Channel)}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             >
-              <option value="whatsapp">WhatsApp assistido</option>
+              <option value="whatsapp">WhatsApp</option>
               <option value="internal">Alerta interno</option>
-              <option value="email">E-mail (placeholder)</option>
-              <option value="webhook">Webhook (placeholder)</option>
+              <option value="email">E-mail</option>
+              <option value="webhook">Webhook</option>
             </select>
           </div>
 
@@ -456,9 +456,7 @@ function LinhaFila({ item, rule, onActionDone }: LinhaFilaProps) {
                 <Bell size={13} />
                 Registrar alerta
               </Button>
-            ) : (
-              <span className="text-xs text-muted-foreground italic">canal em breve</span>
-            )}
+            ) : null}
           </div>
         )}
       </div>
@@ -851,7 +849,7 @@ function CardAutomacao({ status, onExecutar }: {
     <Card className={`border ${status?.autoEnabled ? 'border-primary/20 bg-primary/[0.02]' : ''}`}>
       <CardContent className="pt-4 pb-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          {/* Status do agendador */}
+          {/* Status da automação */}
           <div className="flex items-center gap-3">
             <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${status?.autoEnabled ? 'bg-green-100' : 'bg-gray-100'}`}>
               <Zap size={16} className={status?.autoEnabled ? 'text-green-600' : 'text-gray-400'} />
@@ -1113,19 +1111,6 @@ export default function RegraCobrancaPage() {
             </CardContent>
           </Card>
         )}
-      </div>
-
-      {/* Nota de arquitetura */}
-      <div className="rounded-xl border border-dashed bg-muted/30 px-5 py-4">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-          Pronto para automação futura
-        </p>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          A fila é calculada sob demanda (MVP assistido). Para automação real, basta um
-          scheduler/cron que chame <code className="font-mono bg-muted px-1 rounded">GET /api/regua-cobranca/fila-hoje</code> e
-          processe cada item — a API já suporta disparo em lote.
-          WhatsApp Business API, e-mail e webhooks: substituir os stubs nos adapters de canal.
-        </p>
       </div>
 
       {/* Modal de regra */}

@@ -39,8 +39,7 @@ export default function ConfiguracoesBilling() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Regras de Cobrança</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Configurações aplicadas automaticamente nas cobranças geradas
-            <span className="ml-1 text-amber-600">(salvas localmente — persistência em banco em desenvolvimento)</span>
+            Configurações aplicadas automaticamente às cobranças geradas pela unidade.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -98,7 +97,7 @@ export default function ConfiguracoesBilling() {
                 Cobrança automática
               </label>
               <p className="text-xs text-muted-foreground">
-                Gerar e enviar cobranças automaticamente no dia configurado (requer agendador — em desenvolvimento)
+                Gera e processa cobranças automaticamente conforme as regras configuradas na aba Régua.
               </p>
             </div>
           </div>
@@ -116,24 +115,6 @@ export default function ConfiguracoesBilling() {
         </CardContent>
       </Card>
 
-      {/* Info arquitetura */}
-      <Card className="border-dashed">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm text-muted-foreground">Arquitetura Multi-Banco</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            O sistema usa o padrão <strong>BillingCore + Adapters</strong>. Cada provider implementa a interface
-            <code className="mx-1 rounded bg-muted px-1 py-0.5 font-mono">BillingProviderAdapter</code>
-            com <code className="mx-1 rounded bg-muted px-1 py-0.5 font-mono">createCharge</code>,
-            <code className="mx-1 rounded bg-muted px-1 py-0.5 font-mono">getCharge</code> e
-            <code className="mx-1 rounded bg-muted px-1 py-0.5 font-mono">cancelCharge</code>.
-            Para adicionar um novo banco: criar o adapter em
-            <code className="ml-1 rounded bg-muted px-1 py-0.5 font-mono text-[10px]">apps/api/src/shared/billing/adapters/</code>,
-            registrar no BillingCore e selecionar aqui.
-          </p>
-        </CardContent>
-      </Card>
     </div>
   )
 }

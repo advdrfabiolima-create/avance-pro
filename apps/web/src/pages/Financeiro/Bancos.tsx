@@ -897,18 +897,15 @@ export default function BancosPage() {
         </CardContent>
       </Card>
 
-      {/* Nota técnica */}
+      {/* Nota multi-banco */}
       <div className="rounded-xl border border-dashed bg-muted/30 px-5 py-4">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-          Arquitetura CNAB — pontos de extensão
+          Suporte multi-banco
         </p>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Cada banco tem seu adapter em <code className="font-mono bg-muted px-1 rounded">apps/api/src/shared/cnab/adapters/</code>.
-          Para adicionar um banco: criar o adapter implementando <code className="font-mono bg-muted px-1 rounded">CnabBankAdapter</code> e
-          registrar em <code className="font-mono bg-muted px-1 rounded">cnab.registry.ts</code>.
-          O fluxo de retorno alimenta automaticamente a aba Conciliação.
-          API-READY: <code className="font-mono bg-muted px-1 rounded">BillingBankAccount.metadata</code> pode carregar
-          credenciais de API quando o banco oferecer esta opção.
+          O sistema suporta múltiplos bancos e gateways de cobrança simultaneamente.
+          Arquivos de retorno processados aqui alimentam automaticamente a aba Conciliação.
+          Novos bancos podem ser adicionados conforme necessidade.
         </p>
       </div>
 

@@ -286,31 +286,20 @@ function ImportacaoSection() {
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <Upload size={16} />
-          Importação de Arquivo
+          Importação via Arquivo
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          Importe arquivo de retorno bancário ou planilha para conciliação manual assistida.
+          Para processar arquivos de retorno bancário (CNAB 240/400), acesse a aba
+          <strong className="text-foreground"> Bancos</strong> — o retorno é importado diretamente
+          na conta bancária correspondente e os registros conciliados aparecem aqui automaticamente.
         </p>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" disabled title="Em desenvolvimento">
-            <Upload size={13} /> Importar CSV
-          </Button>
-          <Button variant="outline" size="sm" disabled title="Em desenvolvimento">
-            <FileText size={13} /> Importar CNAB 400
-          </Button>
-          <Button variant="outline" size="sm" disabled title="Em desenvolvimento">
-            <FileText size={13} /> Importar CNAB 240
-          </Button>
-        </div>
         <div className="rounded-lg bg-muted/50 px-3 py-2.5 flex items-start gap-2">
           <Info size={14} className="text-muted-foreground mt-0.5 shrink-0" />
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            <strong>Em desenvolvimento:</strong> Suportará retorno CNAB 400/240 (Bradesco, Inter),
-            extratos bancários em CSV e planilhas. A arquitetura já está preparada —
-            veja <code className="rounded bg-background px-1 font-mono">billing.core.ts</code> e
-            os adapters de banco.
+          <p className="text-xs text-muted-foreground">
+            Conciliações geradas por retorno CNAB, gateway de pagamento (Asaas) e ajustes manuais
+            são consolidadas nesta aba automaticamente.
           </p>
         </div>
       </CardContent>
