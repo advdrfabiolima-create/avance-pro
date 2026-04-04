@@ -55,7 +55,7 @@ function CobrancasTab() {
   const initialSub: CobrancasSubTab =
     subParam && (VALID_COBRANCAS_SUBS as string[]).includes(subParam)
       ? (subParam as CobrancasSubTab)
-      : 'mensalidades'
+      : 'avulsas'
   const [sub, setSub] = useState<CobrancasSubTab>(initialSub)
 
   return (
@@ -63,9 +63,9 @@ function CobrancasTab() {
       {/* Sub-tabs */}
       <div className="flex items-center gap-1 border-b">
         {([
-          { id: 'mensalidades'  as const, label: 'Mensalidades',      icon: <DollarSign size={13} /> },
-          { id: 'avulsas'       as const, label: 'Cobranças Avulsas', icon: <Receipt size={13} /> },
-          { id: 'inadimplencia' as const, label: 'Inadimplência',     icon: <AlertTriangle size={13} /> },
+          { id: 'avulsas'       as const, label: 'Cobranças Avulsas', icon: <Receipt size={13} />,        badge: false },
+          { id: 'mensalidades'  as const, label: 'Mensalidades',      icon: <DollarSign size={13} />,     badge: false },
+          { id: 'inadimplencia' as const, label: 'Inadimplência',     icon: <AlertTriangle size={13} />,  badge: true  },
         ]).map((s) => (
           <button
             key={s.id}
@@ -77,6 +77,12 @@ function CobrancasTab() {
             }`}
           >
             {s.icon} {s.label}
+            {s.badge && (
+              <span className="relative flex h-2 w-2 ml-0.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+              </span>
+            )}
           </button>
         ))}
       </div>
