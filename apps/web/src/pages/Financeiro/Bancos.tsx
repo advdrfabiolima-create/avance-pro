@@ -693,13 +693,17 @@ export default function BancosPage() {
 
   const carregar = useCallback(async () => {
     try {
-      const [contasRes, catRes, resumoRes] = await Promise.all([
+      const [contasRes, catRes] = await Promise.all([
         bancosService.listContas(),
         bancosService.catalogo(),
-        bancosService.resumo(),
       ])
       setContas((contasRes.data as any)?.data ?? [])
       setCatalogo((catRes.data as any)?.data ?? [])
+    } catch {
+      /* silencioso */
+    }
+    try {
+      const resumoRes = await bancosService.resumo()
       setResumo((resumoRes.data as any)?.data ?? null)
     } catch {
       /* silencioso */

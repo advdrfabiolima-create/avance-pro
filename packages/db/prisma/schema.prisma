@@ -488,7 +488,7 @@ model CnabFile {
   bankAccountId  String    @map("bank_account_id")
   /// remessa | retorno
   type           String    @db.VarChar(10)
-  fileName       String    @db.VarChar(200)
+  fileName       String    @map("file_name") @db.VarChar(200)
   /// cnab240 | cnab400
   layoutType     String    @map("layout_type") @db.VarChar(10)
   /// pendente | processado | erro
