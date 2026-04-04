@@ -88,6 +88,179 @@ Regras:
 
 // ─── Gemini call ──────────────────────────────────────────────────────────────
 
+// ─── Gabarito avulso ──────────────────────────────────────────────────────────
+
+export interface GabaritoItem {
+  ordem: number
+  tipo: 'objetiva' | 'numerica' | 'discursiva'
+  resposta: string
+}
+
+export interface ResultadoQuestao {
+  questaoOrdem: number
+  tipo: string
+  respostaGabarito: string
+  respostaAluno: string | null
+  confianca: number | null
+  correta: boolean
+}
+
+/**
+ * Extrai gabarito de uma foto de folha de respostas.
+ * Retorna [{ordem, tipo, resposta}] para cada questão encontrada.
+ */
+export async function extrairGabaritoDeImagem(
+  imagemBase64: string,
+  mimeType: string
+): Promise<GabaritoItem[]> {
+  const apiKey = process.env['GOOGLE_API_KEY']
+  if (!apiKey) throw new Error('GOOGLE_API_KEY não configurada')
+
+  const imagemPura = imagemBase64.includes(',')
+    ? imagemBase64.split(',')[1]!
+    : imagemBase64
+
+  const prompt = `Analise esta imagem de um gabarito (folha de respostas corretas).
+
+Identifique cada questão e sua resposta correta.
+
+Retorne APENAS um JSON válido, sem texto antes ou depois:
+[
+  {
+    "ordem": 1,
+    "tipo": "objetiva",
+    "resposta": "B"
+  }
+]
+
+Regras:
+- Se a resposta for uma letra (A/B/C/D/E), tipo = "objetiva"
+- Se a resposta for um número ou expressão numérica, tipo = "numerica"
+- Se a resposta for texto discursivo, tipo = "discursiva"
+- Inclua TODAS as questões que conseguir identificar na imagem`
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`
+
+  const responseText = await httpsPost(url, {
+    contents: [{
+      parts: [
+        { inline_data: { mime_type: mimeType === 'application/pdf' ? 'image/jpeg' : mimeType, data: imagemPura } },
+        { text: prompt },
+      ],
+    }],
+    generationConfig: { temperature: 0.1, maxOutputTokens: 1000 },
+  })
+
+  let parsed: any
+  try { parsed = JSON.parse(responseText) } catch { throw new Error('Resposta inválida da API Gemini') }
+  if (parsed?.error) throw new Error(`Erro Gemini: ${parsed.error.message ?? JSON.stringify(parsed.error)}`)
+
+  const content: string = parsed?.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+  if (!content) throw new Error('Conteúdo vazio na resposta do Gemini')
+
+  const jsonMatch = content.match(/\[[\s\S]*\]/)
+  if (!jsonMatch) throw new Error('JSON não encontrado na resposta do Gemini')
+
+  let raw: any[]
+  try { raw = JSON.parse(jsonMatch[0]) } catch { throw new Error('JSON inválido retornado pelo Gemini') }
+
+  return raw.map((r: any): GabaritoItem => ({
+    ordem: Number(r.ordem),
+    tipo: (['objetiva', 'numerica', 'discursiva'].includes(r.tipo) ? r.tipo : 'objetiva') as GabaritoItem['tipo'],
+    resposta: String(r.resposta ?? '').trim(),
+  })).filter((r) => r.ordem > 0 && r.resposta.length > 0)
+}
+
+/**
+ * Corrige a folha do aluno comparando com o gabarito fornecido.
+ * Retorna resultado por questão com o que o aluno escreveu e se está correto.
+ */
+export async function corrigirFolhaAvulsa(
+  alunoBase64: string,
+  mimeType: string,
+  gabarito: GabaritoItem[]
+): Promise<ResultadoQuestao[]> {
+  const apiKey = process.env['GOOGLE_API_KEY']
+  if (!apiKey) throw new Error('GOOGLE_API_KEY não configurada')
+
+  const imagemPura = alunoBase64.includes(',')
+    ? alunoBase64.split(',')[1]!
+    : alunoBase64
+
+  const listaGabarito = gabarito
+    .map((g) => {
+      if (g.tipo === 'objetiva') return `  - Questão ${g.ordem}: múltipla escolha, resposta correta = ${g.resposta}`
+      if (g.tipo === 'numerica') return `  - Questão ${g.ordem}: numérica, resposta correta = ${g.resposta}`
+      return `  - Questão ${g.ordem}: discursiva, resposta correta = ${g.resposta}`
+    })
+    .join('\n')
+
+  const prompt = `Analise esta foto de uma folha de exercícios respondida à mão por um aluno.
+
+O gabarito correto é:
+${listaGabarito}
+
+Para cada questão listada acima:
+1. Identifique o que o aluno escreveu/marcou na foto
+2. Compare com a resposta correta do gabarito
+3. Determine se está correto
+
+Retorne APENAS um JSON válido, sem texto antes ou depois:
+[
+  {
+    "questaoOrdem": 1,
+    "tipo": "objetiva",
+    "respostaGabarito": "B",
+    "respostaAluno": "B",
+    "confianca": 0.95,
+    "correta": true
+  }
+]
+
+Regras:
+- respostaAluno: o que o aluno escreveu (null se não conseguir identificar)
+- confianca: 0.0–1.0 indicando certeza da leitura
+- Para objetivas: comparação de letra, desconsidere maiúsculas/minúsculas
+- Para numéricas: compare numericamente (ex: "7.0" == "7")
+- Retorne uma entrada para CADA questão do gabarito`
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`
+
+  const responseText = await httpsPost(url, {
+    contents: [{
+      parts: [
+        { inline_data: { mime_type: mimeType === 'application/pdf' ? 'image/jpeg' : mimeType, data: imagemPura } },
+        { text: prompt },
+      ],
+    }],
+    generationConfig: { temperature: 0.1, maxOutputTokens: 2000 },
+  })
+
+  let parsed: any
+  try { parsed = JSON.parse(responseText) } catch { throw new Error('Resposta inválida da API Gemini') }
+  if (parsed?.error) throw new Error(`Erro Gemini: ${parsed.error.message ?? JSON.stringify(parsed.error)}`)
+
+  const content: string = parsed?.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+  if (!content) throw new Error('Conteúdo vazio na resposta do Gemini')
+
+  const jsonMatch = content.match(/\[[\s\S]*\]/)
+  if (!jsonMatch) throw new Error('JSON não encontrado na resposta do Gemini')
+
+  let raw: any[]
+  try { raw = JSON.parse(jsonMatch[0]) } catch { throw new Error('JSON inválido retornado pelo Gemini') }
+
+  return raw.map((r: any): ResultadoQuestao => ({
+    questaoOrdem: Number(r.questaoOrdem),
+    tipo: String(r.tipo ?? 'objetiva'),
+    respostaGabarito: String(r.respostaGabarito ?? ''),
+    respostaAluno: r.respostaAluno != null ? String(r.respostaAluno) : null,
+    confianca: r.confianca != null ? parseFloat(String(r.confianca)) : null,
+    correta: Boolean(r.correta),
+  }))
+}
+
+// ─── OCR para exercícios cadastrados ─────────────────────────────────────────
+
 export async function detectarRespostasGemini(
   imagemBase64: string,
   mimeType: string,

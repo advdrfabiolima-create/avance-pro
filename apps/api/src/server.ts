@@ -32,6 +32,7 @@ import { startScheduler } from './modules/regua-cobranca/billing-automation.sche
 import { bibliotecaRoutes } from './modules/biblioteca/biblioteca.routes'
 import { trilhasRoutes } from './modules/trilhas/trilhas.routes'
 import { listasExerciciosRoutes } from './modules/listas-exercicios/listas.routes'
+import { correcaoAvulsaRoutes } from './modules/correcao-avulsa/correcao-avulsa.routes'
 
 /**
  * Aplica colunas novas que possam ainda não existir no banco de produção.
@@ -129,6 +130,7 @@ async function main() {
   await app.register(bibliotecaRoutes, { prefix: '/api/biblioteca' })
   await app.register(trilhasRoutes, { prefix: '/api/trilhas' })
   await app.register(listasExerciciosRoutes, { prefix: '/api/listas-exercicios' })
+  await app.register(correcaoAvulsaRoutes, { prefix: '/api/correcao-avulsa' })
 
   // Health check
   app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }))

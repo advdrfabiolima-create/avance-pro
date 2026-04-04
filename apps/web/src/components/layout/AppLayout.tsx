@@ -23,6 +23,7 @@ import {
   ChevronDown,
   BookMarked,
   HelpCircle,
+  ScanLine,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useAuthStore } from '../../store/auth.store'
@@ -62,6 +63,7 @@ const navGroups: NavGroup[] = [
       { to: '/reunioes', label: 'Reuniões', icon: <MessageSquare size={15} /> },
       { to: '/exercicios', label: 'Exercícios', icon: <BookMarked size={15} /> },
       { to: '/biblioteca', label: 'Biblioteca', icon: <Library size={15} /> },
+      { to: '/correcao-avulsa', label: 'Correção Avulsa', icon: <ScanLine size={15} /> },
     ],
   },
   {

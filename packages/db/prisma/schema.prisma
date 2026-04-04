@@ -155,6 +155,7 @@ model Aluno {
   sugestoes        SugestaoReforco[]
   tentativasOcr    TentativaOcr[]
   atividadesBib    AtividadeAluno[]
+  correcoesAvulsas CorrecaoAvulsa[]
 
   @@map("alunos")
 }
@@ -1005,4 +1006,35 @@ model AtividadeAluno {
   lista     ListaExercicio? @relation(fields: [listaId], references: [id])
 
   @@map("atividades_aluno")
+}
+
+// ─── Correção Avulsa (sem exercício cadastrado) ───────────────────────────────
+
+model CorrecaoAvulsa {
+  id             String    @id @default(uuid())
+  alunoId        String    @map("aluno_id")
+  titulo         String?   @db.VarChar(200)
+  disciplina     String?   @db.VarChar(50)
+
+  // Imagem da folha respondida pelo aluno
+  arquivoBase64  String    @db.Text @map("arquivo_base64")
+  tipoArquivo    String    @db.VarChar(50) @map("tipo_arquivo")
+
+  // Gabarito: "manual" (digitado) ou "foto" (extraído por IA)
+  gabaritoFonte  String    @default("manual") @db.VarChar(20) @map("gabarito_fonte")
+  // [{ordem, tipo, resposta}]
+  gabarito       Json
+
+  // Resultado processado pela IA
+  // [{questaoOrdem, tipo, respostaGabarito, respostaAluno, confianca, correta}]
+  resultadoJson  Json?     @map("resultado_json")
+
+  status         String    @default("pendente") @db.VarChar(20)
+  erroMensagem   String?   @db.Text @map("erro_mensagem")
+
+  criadoEm      DateTime  @default(now()) @map("criado_em")
+
+  aluno          Aluno     @relation(fields: [alunoId], references: [id])
+
+  @@map("correcoes_avulsas")
 }

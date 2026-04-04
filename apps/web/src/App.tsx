@@ -42,6 +42,7 @@ const GuiaPage = lazy(() => import('./pages/Guia/index'))
 
 // Biblioteca inteligente de exercícios
 const BibliotecaPage = lazy(() => import('./pages/Biblioteca/index'))
+const CorrecaoAvulsaPage = lazy(() => import('./pages/CorrecaoAvulsa/index'))
 
 // Novas páginas — Fase 4: Exercícios
 const ExerciciosPage = lazy(() => import('./pages/Exercicios/index'))
@@ -106,6 +107,7 @@ export default function App() {
 
             {/* Biblioteca de Exercícios */}
             <Route path="/biblioteca" element={<BibliotecaPage />} />
+            <Route path="/correcao-avulsa" element={<CorrecaoAvulsaPage />} />
 
             {/* Exercícios */}
             <Route path="/exercicios" element={<ExerciciosPage />} />
