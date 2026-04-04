@@ -45,7 +45,16 @@ export const listasService = {
   },
 
   async criar(data: CriarListaInput, usuarioId?: string) {
-    return prisma.listaExercicio.create({ data: { ...data, criadoPorId: usuarioId } })
+    return prisma.listaExercicio.create({
+      data: {
+        titulo: data.titulo,
+        disciplina: data.disciplina,
+        descricao: data.descricao,
+        destinatario: data.destinatario ?? 'aluno',
+        destinoId: data.destinoId,
+        criadoPorId: usuarioId,
+      },
+    })
   },
 
   async atualizar(id: string, data: AtualizarListaInput) {

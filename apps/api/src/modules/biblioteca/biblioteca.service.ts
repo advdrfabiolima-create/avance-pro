@@ -68,9 +68,19 @@ export const bibliotecaService = {
   async criar(data: CriarExercicioInput, usuarioId?: string) {
     return prisma.bibExercicio.create({
       data: {
-        ...data,
+        disciplina: data.disciplina,
+        topico: data.topico,
+        subtopico: data.subtopico,
+        nivel: data.nivel,
+        dificuldade: data.dificuldade,
+        tipo: data.tipo,
+        enunciado: data.enunciado,
         opcoes: data.opcoes ?? Prisma.JsonNull,
+        resposta: data.resposta,
+        explicacao: data.explicacao,
         tags: data.tags,
+        status: data.status ?? 'rascunho',
+        origem: 'manual',
         criadoPorId: usuarioId,
       },
     })
@@ -135,8 +145,16 @@ export const bibliotecaService = {
       data.exercicios.map((ex) =>
         prisma.bibExercicio.create({
           data: {
-            ...ex,
+            disciplina: ex.disciplina,
+            topico: ex.topico,
+            subtopico: ex.subtopico,
+            nivel: ex.nivel,
+            dificuldade: ex.dificuldade,
+            tipo: ex.tipo,
+            enunciado: ex.enunciado,
             opcoes: ex.opcoes ?? Prisma.JsonNull,
+            resposta: ex.resposta,
+            explicacao: ex.explicacao,
             tags: ex.tags,
             origem: 'ia',
             status: 'rascunho',

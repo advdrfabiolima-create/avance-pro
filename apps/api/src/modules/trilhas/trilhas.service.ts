@@ -43,7 +43,16 @@ export const trilhasService = {
   },
 
   async criar(data: CriarTrilhaInput) {
-    return prisma.trilhaPedagogica.create({ data })
+    return prisma.trilhaPedagogica.create({
+      data: {
+        nome: data.nome,
+        disciplina: data.disciplina,
+        descricao: data.descricao,
+        nivelInicio: data.nivelInicio,
+        nivelFim: data.nivelFim,
+        status: data.status ?? 'rascunho',
+      },
+    })
   },
 
   async atualizar(id: string, data: AtualizarTrilhaInput) {
