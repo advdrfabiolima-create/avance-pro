@@ -143,7 +143,7 @@ Regras:
 - Se a resposta for texto discursivo, tipo = "discursiva"
 - Inclua TODAS as questões que conseguir identificar na imagem`
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`
+  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`
 
   const responseText = await httpsPost(url, {
     contents: [{
@@ -252,7 +252,7 @@ Retorne APENAS um JSON válido, sem texto antes ou depois:
 Retorne uma entrada para CADA questão do gabarito.
 Se não conseguir identificar a resposta, use respostaAluno: null, confianca: 0, correta: false.`
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`
+  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`
 
   const responseText = await httpsPost(url, {
     contents: [{
@@ -310,7 +310,7 @@ export async function detectarRespostasGemini(
 
   const prompt = buildPrompt(questoesOcr)
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`
+  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`
 
   const responseText = await httpsPost(url, {
     contents: [
