@@ -103,6 +103,10 @@ export interface ResultadoQuestao {
   respostaAluno: string | null
   confianca: number | null
   correta: boolean
+  // Campos exclusivos para discursivas
+  textoDetectado: string | null
+  avaliacaoIA: 'correto' | 'parcial' | 'incorreto' | null
+  justificativa: string | null
 }
 
 /**
@@ -200,10 +204,24 @@ export async function corrigirFolhaAvulsa(
 O gabarito correto é:
 ${listaGabarito}
 
-Para cada questão listada acima:
-1. Identifique o que o aluno escreveu/marcou na foto
-2. Compare com a resposta correta do gabarito
-3. Determine se está correto
+Para cada questão listada acima, aplique o seguinte critério conforme o tipo:
+
+**Questões objetivas (múltipla escolha):**
+- Identifique a letra marcada pelo aluno (A/B/C/D/E)
+- Compare com o gabarito (desconsidere maiúsculas/minúsculas)
+- textoDetectado, avaliacaoIA e justificativa devem ser null
+
+**Questões numéricas:**
+- Identifique o número escrito pelo aluno
+- Compare numericamente com o gabarito (ex: "7.0" == "7")
+- textoDetectado, avaliacaoIA e justificativa devem ser null
+
+**Questões discursivas:**
+- Transcreva o texto exato que o aluno escreveu no campo textoDetectado
+- Compare semanticamente com a resposta esperada do gabarito
+- Avalie: "correto" (resposta certa), "parcial" (parte certa), "incorreto" (errado)
+- Explique em 1-2 frases no campo justificativa
+- respostaAluno deve conter o texto transcrito
 
 Retorne APENAS um JSON válido, sem texto antes ou depois:
 [
@@ -213,16 +231,26 @@ Retorne APENAS um JSON válido, sem texto antes ou depois:
     "respostaGabarito": "B",
     "respostaAluno": "B",
     "confianca": 0.95,
-    "correta": true
+    "correta": true,
+    "textoDetectado": null,
+    "avaliacaoIA": null,
+    "justificativa": null
+  },
+  {
+    "questaoOrdem": 2,
+    "tipo": "discursiva",
+    "respostaGabarito": "O sujeito é os meninos",
+    "respostaAluno": "os meninos",
+    "confianca": 0.88,
+    "correta": true,
+    "textoDetectado": "os meninos",
+    "avaliacaoIA": "correto",
+    "justificativa": "O aluno identificou corretamente o sujeito da oração."
   }
 ]
 
-Regras:
-- respostaAluno: o que o aluno escreveu (null se não conseguir identificar)
-- confianca: 0.0–1.0 indicando certeza da leitura
-- Para objetivas: comparação de letra, desconsidere maiúsculas/minúsculas
-- Para numéricas: compare numericamente (ex: "7.0" == "7")
-- Retorne uma entrada para CADA questão do gabarito`
+Retorne uma entrada para CADA questão do gabarito.
+Se não conseguir identificar a resposta, use respostaAluno: null, confianca: 0, correta: false.`
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`
 
@@ -255,6 +283,9 @@ Regras:
     respostaGabarito: String(r.respostaGabarito ?? ''),
     respostaAluno: r.respostaAluno != null ? String(r.respostaAluno) : null,
     confianca: r.confianca != null ? parseFloat(String(r.confianca)) : null,
+    textoDetectado: r.textoDetectado != null ? String(r.textoDetectado) : null,
+    avaliacaoIA: (['correto', 'parcial', 'incorreto'].includes(r.avaliacaoIA) ? r.avaliacaoIA : null) as ResultadoQuestao['avaliacaoIA'],
+    justificativa: r.justificativa != null ? String(r.justificativa) : null,
     correta: Boolean(r.correta),
   }))
 }

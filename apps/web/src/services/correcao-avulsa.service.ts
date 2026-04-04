@@ -13,6 +13,13 @@ export interface ResultadoQuestao {
   respostaAluno: string | null
   confianca: number | null
   correta: boolean
+  // Campos para discursivas
+  textoDetectado: string | null
+  avaliacaoIA: 'correto' | 'parcial' | 'incorreto' | null
+  justificativa: string | null
+  // Decisão final do professor (pode sobrescrever correta)
+  corretaFinal?: boolean
+  revisadaManual?: boolean
 }
 
 export interface ResultadoCorrecao {

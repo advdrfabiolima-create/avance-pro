@@ -11,6 +11,7 @@ import {
   correcaoAvulsaService,
   type GabaritoItem,
   type ResultadoCorrecao,
+  type ResultadoQuestao,
 } from '../../services/correcao-avulsa.service'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -160,71 +161,148 @@ function GabaritoManual({ itens, onChange }: GabaritoManualProps) {
 
 // ─── Resultado ────────────────────────────────────────────────────────────────
 
-function ResultadoView({ resultado }: { resultado: ResultadoCorrecao }) {
-  const pct = resultado.percentual
+const AVALIACAO_LABEL: Record<string, string> = {
+  correto: 'Correto',
+  parcial: 'Parcial',
+  incorreto: 'Incorreto',
+}
+const AVALIACAO_CLS: Record<string, string> = {
+  correto: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  parcial: 'bg-amber-100 text-amber-700 border-amber-200',
+  incorreto: 'bg-red-100 text-red-600 border-red-200',
+}
+
+interface ResultadoViewProps {
+  questoes: ResultadoQuestao[]
+  onOverride: (ordem: number, decisao: boolean) => void
+}
+
+function ResultadoView({ questoes, onOverride }: ResultadoViewProps) {
+  // Usa corretaFinal se o professor revisou, senão usa correta da IA
+  const acertos = questoes.filter((q) => (q.corretaFinal ?? q.correta)).length
+  const total = questoes.length
+  const pct = total > 0 ? Math.round((acertos / total) * 100) : 0
   const cor = pct >= 70 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-red-600'
   const bgCor = pct >= 70 ? 'bg-emerald-50 border-emerald-200' : pct >= 50 ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'
+  const discursivasPendentes = questoes.filter((q) => q.tipo === 'discursiva' && !q.revisadaManual).length
 
   return (
     <div className="space-y-4">
+      {/* Aviso de discursivas pendentes */}
+      {discursivasPendentes > 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+          <AlertCircle size={14} className="text-amber-500 shrink-0 mt-0.5" />
+          <p className="text-sm text-amber-800">
+            <span className="font-semibold">{discursivasPendentes} questão(ões) discursiva(s)</span> aguardam sua confirmação abaixo. Revise a avaliação da IA antes de salvar.
+          </p>
+        </div>
+      )}
+
       {/* Resumo */}
       <div className={`rounded-xl border p-4 ${bgCor}`}>
         <div className="flex items-center justify-between">
           <div>
             <p className={`text-3xl font-bold ${cor}`}>{pct}%</p>
-            <p className="text-sm text-slate-600 mt-0.5">
-              {resultado.acertos} acerto(s) de {resultado.totalQuestoes} questão(ões)
-            </p>
+            <p className="text-sm text-slate-600 mt-0.5">{acertos} acerto(s) de {total} questão(ões)</p>
           </div>
           <div className="text-right text-sm text-slate-500 space-y-0.5">
-            <p><span className="font-medium text-emerald-600">{resultado.acertos}</span> corretas</p>
-            <p><span className="font-medium text-red-500">{resultado.erros}</span> erradas</p>
-            {resultado.naoDetectadas > 0 && (
-              <p><span className="font-medium text-amber-500">{resultado.naoDetectadas}</span> não detectadas</p>
-            )}
+            <p><span className="font-medium text-emerald-600">{acertos}</span> corretas</p>
+            <p><span className="font-medium text-red-500">{total - acertos}</span> erradas</p>
           </div>
         </div>
       </div>
 
       {/* Por questão */}
-      <div className="space-y-1.5 max-h-80 overflow-y-auto pr-1">
-        {resultado.questoes.map((q) => (
-          <div
-            key={q.questaoOrdem}
-            className={`flex items-center gap-3 rounded-lg border px-3 py-2 ${
-              q.respostaAluno === null
-                ? 'border-amber-200 bg-amber-50'
-                : q.correta
-                ? 'border-emerald-200 bg-emerald-50'
-                : 'border-red-200 bg-red-50'
-            }`}
-          >
-            {q.respostaAluno === null ? (
-              <AlertCircle size={15} className="text-amber-500 shrink-0" />
-            ) : q.correta ? (
-              <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
-            ) : (
-              <XCircle size={15} className="text-red-500 shrink-0" />
-            )}
-            <span className="text-xs font-semibold text-slate-600 w-14 shrink-0">Q{q.questaoOrdem}</span>
-            <div className="flex-1 flex items-center gap-3 text-xs">
-              <span className="text-slate-500">
-                Gabarito: <span className="font-semibold text-slate-700">{q.respostaGabarito}</span>
-              </span>
-              <span className="text-slate-500">
-                Aluno:{' '}
-                <span className={`font-semibold ${q.respostaAluno === null ? 'text-amber-600' : q.correta ? 'text-emerald-700' : 'text-red-600'}`}>
-                  {q.respostaAluno ?? '—'}
-                </span>
-              </span>
-              {q.confianca !== null && (
-                <span className="text-slate-400 ml-auto">
-                  {Math.round(q.confianca * 100)}% conf.
-                </span>
+      <div className="space-y-2">
+        {questoes.map((q) => {
+          const corretaFinal = q.corretaFinal ?? q.correta
+          const isDiscursiva = q.tipo === 'discursiva'
+          const naoDetectada = q.respostaAluno === null
+
+          return (
+            <div
+              key={q.questaoOrdem}
+              className={`rounded-xl border p-3 ${
+                naoDetectada
+                  ? 'border-amber-200 bg-amber-50'
+                  : corretaFinal
+                  ? 'border-emerald-200 bg-emerald-50'
+                  : 'border-red-200 bg-red-50'
+              }`}
+            >
+              {/* Linha principal */}
+              <div className="flex items-start gap-2.5">
+                <div className="mt-0.5 shrink-0">
+                  {naoDetectada ? (
+                    <AlertCircle size={15} className="text-amber-500" />
+                  ) : corretaFinal ? (
+                    <CheckCircle2 size={15} className="text-emerald-600" />
+                  ) : (
+                    <XCircle size={15} className="text-red-500" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                    <span className="font-bold text-slate-600">Q{q.questaoOrdem}</span>
+                    <span className="text-slate-500">
+                      Gabarito: <span className="font-semibold text-slate-700">{q.respostaGabarito}</span>
+                    </span>
+                    <span className="text-slate-500">
+                      Aluno:{' '}
+                      <span className={`font-semibold ${
+                        naoDetectada ? 'text-amber-600' : corretaFinal ? 'text-emerald-700' : 'text-red-600'
+                      }`}>
+                        {q.respostaAluno ?? '—'}
+                      </span>
+                    </span>
+                    {q.confianca !== null && (
+                      <span className="text-slate-400">{Math.round(q.confianca * 100)}% conf.</span>
+                    )}
+                    {isDiscursiva && q.avaliacaoIA && (
+                      <span className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] font-semibold ${AVALIACAO_CLS[q.avaliacaoIA] ?? ''}`}>
+                        IA: {AVALIACAO_LABEL[q.avaliacaoIA]}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Justificativa da IA para discursivas */}
+                  {isDiscursiva && q.justificativa && (
+                    <p className="mt-1.5 text-xs text-slate-600 italic leading-relaxed">
+                      "{q.justificativa}"
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Botões de revisão para discursivas */}
+              {isDiscursiva && (
+                <div className="mt-3 flex items-center gap-2 pl-[22px]">
+                  <span className="text-[11px] text-slate-500 font-medium mr-1">Sua decisão:</span>
+                  {[
+                    { val: true, label: 'Correto', cls: 'border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100' },
+                    { val: false, label: 'Incorreto', cls: 'border-red-300 text-red-600 bg-red-50 hover:bg-red-100' },
+                  ].map(({ val, label, cls }) => (
+                    <button
+                      key={String(val)}
+                      onClick={() => onOverride(q.questaoOrdem, val)}
+                      className={`rounded-lg border px-3 py-1 text-[11px] font-semibold transition-all ${cls} ${
+                        q.revisadaManual && (q.corretaFinal === val)
+                          ? 'ring-2 ring-offset-1 ' + (val ? 'ring-emerald-400' : 'ring-red-400')
+                          : 'opacity-70'
+                      }`}
+                    >
+                      {val ? <CheckCircle2 size={11} className="inline mr-1" /> : <XCircle size={11} className="inline mr-1" />}
+                      {label}
+                    </button>
+                  ))}
+                  {!q.revisadaManual && (
+                    <span className="text-[11px] text-amber-600 font-medium ml-1">— confirme</span>
+                  )}
+                </div>
               )}
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
@@ -308,6 +386,7 @@ export default function CorrecaoAvulsaPage() {
   const [extraindo, setExtraindo] = useState(false)
 
   const [folhaAluno, setFolhaAluno] = useState<{ base64: string; mime: string; preview: string } | null>(null)
+  const [questoes, setQuestoes] = useState<ResultadoQuestao[]>([])
   const [resultado, setResultado] = useState<ResultadoCorrecao | null>(null)
   const [erro, setErro] = useState('')
   const [salvando, setSalvando] = useState(false)
@@ -320,6 +399,9 @@ export default function CorrecaoAvulsaPage() {
 
   const gabaritoValido = gabarito.length > 0 && gabarito.every((g) => g.resposta.trim().length > 0)
   const podeCorrigir = aluno && folhaAluno && gabaritoValido
+
+  // Discursivas pendentes de revisão pelo professor
+  const discursivasPendentes = questoes.filter((q) => q.tipo === 'discursiva' && !q.revisadaManual).length
 
   async function extrairGabarito() {
     if (!gabaritoFoto) return
@@ -340,6 +422,13 @@ export default function CorrecaoAvulsaPage() {
     setErro('')
     try {
       const res = await correcaoAvulsaService.processar(folhaAluno!.base64, folhaAluno!.mime, gabarito)
+      // Inicializa corretaFinal = correta da IA (professor pode sobrescrever)
+      const qs = res.data.data.questoes.map((q) => ({
+        ...q,
+        corretaFinal: q.correta,
+        revisadaManual: q.tipo !== 'discursiva', // objetivas/numéricas já consideradas revisadas
+      }))
+      setQuestoes(qs)
       setResultado(res.data.data)
       setEtapa('resultado')
     } catch (e: any) {
@@ -348,9 +437,29 @@ export default function CorrecaoAvulsaPage() {
     }
   }
 
+  function handleOverride(ordem: number, decisao: boolean) {
+    setQuestoes((prev) =>
+      prev.map((q) =>
+        q.questaoOrdem === ordem
+          ? { ...q, corretaFinal: decisao, revisadaManual: true }
+          : q
+      )
+    )
+  }
+
   async function salvar() {
     if (!resultado || !aluno || !folhaAluno) return
     setSalvando(true)
+    // Monta resultado final com as decisões do professor
+    const acertos = questoes.filter((q) => q.corretaFinal ?? q.correta).length
+    const total = questoes.length
+    const resultadoFinal: ResultadoCorrecao = {
+      ...resultado,
+      questoes,
+      acertos,
+      erros: total - acertos,
+      percentual: total > 0 ? Math.round((acertos / total) * 100) : 0,
+    }
     try {
       await correcaoAvulsaService.salvar({
         alunoId: aluno.id,
@@ -360,7 +469,7 @@ export default function CorrecaoAvulsaPage() {
         tipoArquivo: folhaAluno.mime,
         gabaritoFonte: gabaritoModo,
         gabarito,
-        resultadoJson: resultado,
+        resultadoJson: resultadoFinal,
       })
       setSalvo(true)
     } catch (e: any) {
@@ -378,6 +487,7 @@ export default function CorrecaoAvulsaPage() {
     setGabaritoFoto(null)
     setGabaritoExtraido(null)
     setFolhaAluno(null)
+    setQuestoes([])
     setResultado(null)
     setErro('')
     setSalvo(false)
@@ -413,17 +523,24 @@ export default function CorrecaoAvulsaPage() {
       {/* Resultado */}
       {etapa === 'resultado' && resultado && (
         <div className="space-y-4">
-          <ResultadoView resultado={resultado} />
+          <ResultadoView questoes={questoes} onOverride={handleOverride} />
 
           {!salvo ? (
-            <div className="flex gap-3">
-              <Button onClick={salvar} disabled={salvando} className="flex-1">
-                {salvando ? <Loader2 size={14} className="mr-2 animate-spin" /> : <Save size={14} className="mr-2" />}
-                Salvar no histórico de {aluno?.nome}
-              </Button>
-              <Button variant="outline" onClick={reiniciar}>
-                <RotateCcw size={14} className="mr-2" /> Nova correção
-              </Button>
+            <div className="space-y-2">
+              {discursivasPendentes > 0 && (
+                <p className="text-xs text-amber-700 text-center">
+                  Confirme as {discursivasPendentes} questão(ões) discursiva(s) acima antes de salvar.
+                </p>
+              )}
+              <div className="flex gap-3">
+                <Button onClick={salvar} disabled={salvando || discursivasPendentes > 0} className="flex-1">
+                  {salvando ? <Loader2 size={14} className="mr-2 animate-spin" /> : <Save size={14} className="mr-2" />}
+                  Salvar no histórico de {aluno?.nome}
+                </Button>
+                <Button variant="outline" onClick={reiniciar}>
+                  <RotateCcw size={14} className="mr-2" /> Nova correção
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="space-y-3">
