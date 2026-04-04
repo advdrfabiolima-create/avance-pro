@@ -44,47 +44,47 @@ const navGroups: NavGroup[] = [
     label: 'Geral',
     defaultOpen: true,
     items: [
-      { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={14} /> },
-      { to: '/alunos', label: 'Alunos', icon: <GraduationCap size={14} /> },
-      { to: '/responsaveis', label: 'Responsáveis', icon: <Users size={14} /> },
+      { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={15} /> },
+      { to: '/alunos', label: 'Alunos', icon: <GraduationCap size={15} /> },
+      { to: '/responsaveis', label: 'Responsáveis', icon: <Users size={15} /> },
     ],
   },
   {
     label: 'Operacional',
     defaultOpen: true,
     items: [
-      { to: '/turmas', label: 'Turmas', icon: <CalendarDays size={14} /> },
-      { to: '/disciplinas', label: 'Disciplinas', icon: <BookOpen size={14} /> },
-      { to: '/sessoes', label: 'Sessões', icon: <ClipboardList size={14} /> },
-      { to: '/quadro-horarios', label: 'Quadro de Horários', icon: <Grid3X3 size={14} /> },
-      { to: '/presenca', label: 'Lista de Presença', icon: <CheckSquare size={14} /> },
-      { to: '/reunioes', label: 'Reuniões', icon: <MessageSquare size={14} /> },
-      { to: '/exercicios', label: 'Exercícios', icon: <BookMarked size={14} /> },
+      { to: '/turmas', label: 'Turmas', icon: <CalendarDays size={15} /> },
+      { to: '/disciplinas', label: 'Disciplinas', icon: <BookOpen size={15} /> },
+      { to: '/sessoes', label: 'Sessões', icon: <ClipboardList size={15} /> },
+      { to: '/quadro-horarios', label: 'Quadro de Horários', icon: <Grid3X3 size={15} /> },
+      { to: '/presenca', label: 'Lista de Presença', icon: <CheckSquare size={15} /> },
+      { to: '/reunioes', label: 'Reuniões', icon: <MessageSquare size={15} /> },
+      { to: '/exercicios', label: 'Exercícios', icon: <BookMarked size={15} /> },
     ],
   },
   {
     label: 'Financeiro',
     defaultOpen: true,
     items: [
-      { to: '/financeiro', label: 'Financeiro', icon: <DollarSign size={14} /> },
+      { to: '/financeiro', label: 'Financeiro', icon: <DollarSign size={15} /> },
     ],
   },
   {
     label: 'Avançado',
     defaultOpen: false,
     items: [
-      { to: '/notas-fiscais', label: 'Notas Fiscais', icon: <Landmark size={14} /> },
-      { to: '/importacoes', label: 'Importações', icon: <Upload size={14} /> },
-      { to: '/reajustes', label: 'Reajustes em Lote', icon: <FileText size={14} /> },
+      { to: '/notas-fiscais', label: 'Notas Fiscais', icon: <Landmark size={15} /> },
+      { to: '/importacoes', label: 'Importações', icon: <Upload size={15} /> },
+      { to: '/reajustes', label: 'Reajustes em Lote', icon: <FileText size={15} /> },
     ],
   },
   {
     label: 'Admin',
     defaultOpen: false,
     items: [
-      { to: '/usuarios', label: 'Usuários', icon: <UserCog size={14} />, onlyFranqueado: true },
-      { to: '/configuracoes', label: 'Configurações', icon: <Settings size={14} /> },
-      { to: '/guia', label: 'Guia do Sistema', icon: <HelpCircle size={14} /> },
+      { to: '/usuarios', label: 'Usuários', icon: <UserCog size={15} />, onlyFranqueado: true },
+      { to: '/configuracoes', label: 'Configurações', icon: <Settings size={15} /> },
+      { to: '/guia', label: 'Guia do Sistema', icon: <HelpCircle size={15} /> },
     ],
   },
 ]
@@ -100,11 +100,10 @@ function loadOpenGroups(activeLabel: string | null): Set<string> {
     if (stored) {
       const parsed = JSON.parse(stored) as string[]
       const set = new Set(parsed)
-      if (activeLabel) set.add(activeLabel) // rota ativa sempre abre o grupo
+      if (activeLabel) set.add(activeLabel)
       return set
     }
   } catch {}
-  // Primeira visita: usar defaults + grupo ativo
   const defaults = new Set(navGroups.filter((g) => g.defaultOpen).map((g) => g.label))
   if (activeLabel) defaults.add(activeLabel)
   return defaults
@@ -149,7 +148,6 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
     loadOpenGroups(activeGroupLabel)
   )
 
-  // Quando a rota muda, garante que o grupo ativo está aberto
   useEffect(() => {
     if (!activeGroupLabel) return
     setOpenGroups((prev) => {
@@ -177,18 +175,18 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
   return (
     <div
       className="flex h-full flex-col"
-      style={{ background: '#F8FAFC', borderRight: '1px solid #E5E7EB' }}
+      style={{ background: '#F8FAFC', borderRight: '1px solid #E2E8F0' }}
     >
       {/* ── Logo ─────────────────────────────────────────────────────────────── */}
       <div
         className="flex h-[60px] shrink-0 items-center px-5"
-        style={{ borderBottom: '1px solid #F1F5F9' }}
+        style={{ borderBottom: '1px solid #E2E8F0' }}
       >
         <img src="/logo_color.png" alt="Avance Pro" className="h-9 w-auto" />
         {onClose && (
           <button
             onClick={onClose}
-            className="ml-auto rounded-md p-1.5 transition-colors duration-150"
+            className="ml-auto rounded-md p-1.5 transition-colors duration-150 hover:bg-slate-200/60"
             style={{ color: '#64748B' }}
             aria-label="Fechar menu"
           >
@@ -198,7 +196,7 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
       </div>
 
       {/* ── Nav ──────────────────────────────────────────────────────────────── */}
-      <nav className="flex-1 overflow-y-auto px-3 py-3">
+      <nav className="flex-1 overflow-y-auto px-3 py-4">
         {navGroups.map((group, groupIdx) => {
           const visibleItems = group.items.filter(
             (item) => !item.onlyFranqueado || perfil === 'franqueado'
@@ -211,15 +209,15 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
           )
 
           return (
-            <div key={group.label} className={groupIdx > 0 ? 'mt-1' : ''}>
+            <div key={group.label} className={groupIdx > 0 ? 'mt-6' : ''}>
               {/* Cabeçalho do grupo */}
               <button
                 onClick={() => toggleGroup(group.label)}
-                className="group/hdr flex w-full items-center justify-between rounded-md px-2 py-1.5 transition-colors duration-150"
-                style={{ marginBottom: '2px' }}
+                className="group/hdr flex w-full items-center justify-between rounded-md px-2 py-1 transition-colors duration-150"
+                style={{ marginBottom: '4px' }}
               >
                 <span
-                  className="text-[12px] font-semibold uppercase tracking-[0.05em] transition-colors duration-150 group-hover/hdr:text-slate-500"
+                  className="text-[11px] font-semibold uppercase tracking-[0.07em] transition-colors duration-150 group-hover/hdr:text-slate-500"
                   style={{ color: hasActive ? '#6366F1' : '#94A3B8' }}
                 >
                   {group.label}
@@ -243,7 +241,7 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
                 }}
               >
                 <div className="overflow-hidden">
-                  <ul className="mb-2 space-y-px">
+                  <ul className="mb-1 space-y-0.5">
                     {visibleItems.map((item) => (
                       <li key={item.to}>
                         <NavLink
@@ -251,18 +249,24 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
                           onClick={onClose}
                           className={({ isActive }) =>
                             cn(
-                              'flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[14px] transition-all duration-150',
+                              'flex items-center gap-3 rounded-lg px-3 py-2 text-[13.5px] transition-all duration-150',
                               isActive
-                                ? 'font-semibold shadow-[inset_2px_0_0_0_#4F46E5]'
-                                : 'font-medium hover:bg-[#F1F5F9]'
+                                ? 'font-semibold'
+                                : 'font-medium hover:bg-slate-200/50'
                             )
                           }
                           style={({ isActive }) => ({
-                            color: isActive ? '#4338CA' : '#334155',
-                            background: isActive ? '#EEF2FF' : undefined,
+                            color: isActive ? '#3730A3' : '#475569',
+                            background: isActive ? 'rgba(99, 102, 241, 0.08)' : undefined,
+                            boxShadow: isActive ? 'inset 3px 0 0 0 #4F46E5' : undefined,
                           })}
                         >
-                          <span className="shrink-0 flex items-center">{item.icon}</span>
+                          <span
+                            className="shrink-0 flex items-center transition-colors duration-150"
+                            style={{ color: 'inherit' }}
+                          >
+                            {item.icon}
+                          </span>
                           <span className="leading-none">{item.label}</span>
                         </NavLink>
                       </li>
@@ -282,11 +286,11 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
       </div>
 
       {/* ── Footer: usuário ───────────────────────────────────────────────────── */}
-      <div className="px-3 pb-3" style={{ borderTop: '1px solid #F1F5F9' }}>
-        <div className="mt-3 flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors duration-150 hover:bg-[#F1F5F9] group/user">
+      <div className="px-3 pb-3" style={{ borderTop: '1px solid #E2E8F0' }}>
+        <div className="mt-3 flex items-center gap-2.5 rounded-xl px-2.5 py-2.5 transition-colors duration-150 hover:bg-slate-200/50 group/user cursor-default">
           <div
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold uppercase"
-            style={{ background: '#EEF2FF', color: '#4338CA', boxShadow: '0 0 0 1.5px #C7D2FE' }}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-bold uppercase"
+            style={{ background: '#EEF2FF', color: '#4338CA', boxShadow: '0 0 0 2px #C7D2FE' }}
           >
             {nome.charAt(0)}
           </div>
@@ -294,18 +298,18 @@ function SidebarContent({ perfil, nome, onLogout, onClose }: SidebarContentProps
             <p className="truncate text-[13px] font-semibold leading-tight" style={{ color: '#1E293B' }}>
               {nome}
             </p>
-            <p className="truncate text-[12px] leading-tight capitalize mt-0.5" style={{ color: '#64748B' }}>
+            <p className="truncate text-[11.5px] leading-tight capitalize mt-0.5" style={{ color: '#94A3B8' }}>
               {perfil}
             </p>
           </div>
           <button
             onClick={onLogout}
-            className="shrink-0 rounded-md p-1.5 transition-all duration-150 hover:bg-red-50 hover:text-red-500 opacity-0 group-hover/user:opacity-100"
-            style={{ color: '#64748B' }}
+            className="shrink-0 rounded-lg p-1.5 transition-all duration-150 hover:bg-red-50 hover:text-red-500 opacity-0 group-hover/user:opacity-100"
+            style={{ color: '#94A3B8' }}
             aria-label="Sair"
             title="Sair"
           >
-            <LogOut size={13} />
+            <LogOut size={14} />
           </button>
         </div>
       </div>
@@ -326,7 +330,7 @@ export default function AppLayout() {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Sidebar — desktop */}
-      <aside className="hidden w-[220px] shrink-0 md:flex md:flex-col">
+      <aside className="hidden w-[240px] shrink-0 md:flex md:flex-col">
         <SidebarContent perfil={perfil} nome={nome} onLogout={logout} />
       </aside>
 
@@ -338,7 +342,7 @@ export default function AppLayout() {
             onClick={() => setMobileOpen(false)}
             aria-hidden="true"
           />
-          <div className="relative z-50 flex w-[220px] flex-col shadow-2xl">
+          <div className="relative z-50 flex w-[240px] flex-col shadow-2xl">
             <SidebarContent
               perfil={perfil}
               nome={nome}
@@ -353,7 +357,7 @@ export default function AppLayout() {
       <div className="flex flex-1 flex-col overflow-hidden">
         <header
           className="flex h-[60px] shrink-0 items-center gap-3 px-4 md:px-6"
-          style={{ borderBottom: '1px solid #F1F5F9', background: '#FFFFFF' }}
+          style={{ borderBottom: '1px solid #E2E8F0', background: '#FFFFFF' }}
         >
           <button
             className="rounded-lg p-1.5 transition-colors duration-150 md:hidden hover:bg-slate-100"
