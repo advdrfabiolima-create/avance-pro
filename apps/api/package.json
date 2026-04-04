@@ -6,7 +6,8 @@
     "dev": "tsx watch src/server.ts",
     "prebuild": "pnpm --filter @kumon-advance/db generate && pnpm --filter @kumon-advance/db build",
     "build": "tsc",
-    "start": "node dist/server.js",
+    "migrate": "pnpm --filter @kumon-advance/db migrate:deploy",
+    "start": "pnpm run migrate && node dist/server.js",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit"
   },
