@@ -344,7 +344,7 @@ export default function CobrancasPage({ embedded = false }: { embedded?: boolean
 
   return (
     <div className="space-y-6">
-      {!embedded && (
+      {!embedded ? (
         <PageHeader
           title="Cobranças"
           subtitle="Gerencie boletos e cobranças dos alunos"
@@ -354,6 +354,12 @@ export default function CobrancasPage({ embedded = false }: { embedded?: boolean
             </Button>
           }
         />
+      ) : (
+        <div className="flex items-center justify-end">
+          <Button onClick={() => setModalOpen(true)}>
+            <Plus size={14} /> Nova Cobrança
+          </Button>
+        </div>
       )}
 
       {!gatewayAtivo && (

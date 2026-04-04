@@ -417,7 +417,7 @@ export default function PagamentosPage({ embedded = false }: { embedded?: boolea
 
   return (
     <div className="space-y-6">
-      {!embedded && (
+      {!embedded ? (
         <PageHeader
           title="Mensalidades"
           subtitle="Gerencie as mensalidades dos alunos"
@@ -427,6 +427,12 @@ export default function PagamentosPage({ embedded = false }: { embedded?: boolea
             </Button>
           }
         />
+      ) : (
+        <div className="flex items-center justify-end">
+          <Button onClick={() => setGerandoMensalidades(true)}>
+            Gerar Mensalidades
+          </Button>
+        </div>
       )}
 
       {/* Filtros */}
