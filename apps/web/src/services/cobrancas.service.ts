@@ -20,9 +20,21 @@ export interface Cobranca {
     id: string
     nome: string
     foto?: string
-    responsaveis?: Array<{ responsavel: { nome: string; telefone: string | null } }>
+    responsaveis?: Array<{ responsavel: { nome: string; telefone: string | null; email?: string | null } }>
   }
   pagamento?: { id: string; mesReferencia: string }
+}
+
+export interface CobrancaInadimplente extends Cobranca {
+  diasAtraso: number
+  actionLogs?: Array<{ actionType: string; triggeredAt: string; channel: string; status: string }>
+}
+
+export interface ResumoInadimplencia {
+  totalCobrancas: number
+  totalAlunos: number
+  valorTotal: number
+  faixas: Array<{ label: string; count: number; valor: number }>
 }
 
 export const cobrancasService = {
@@ -49,4 +61,13 @@ export const cobrancasService = {
 
   cancelar: (id: string) =>
     api.patch<{ success: boolean; data: Cobranca }>(`/cobrancas/${id}/cancelar`, {}),
+
+  listarInadimplencia: (params?: { faixa?: string; alunoId?: string; page?: number; pageSize?: number }) =>
+    api.get<{ success: boolean; data: { data: CobrancaInadimplente[]; total: number; totalPaginas: number } }>('/cobrancas/inadimplencia', { params }),
+
+  resumoInadimplencia: () =>
+    api.get<{ success: boolean; data: ResumoInadimplencia }>('/cobrancas/resumo-inadimplencia'),
+
+  enviarEmail: (id: string, subject: string, template: string) =>
+    api.post<{ success: boolean }>(`/cobrancas/${id}/enviar-email`, { subject, template }),
 }

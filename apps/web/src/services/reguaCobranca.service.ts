@@ -11,6 +11,7 @@ export interface BillingRule {
   offsetDays: number
   channel: Channel
   template: string
+  emailSubject?: string | null
   isActive: boolean
   createdAt: string
   updatedAt: string

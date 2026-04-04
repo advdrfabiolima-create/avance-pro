@@ -42,6 +42,7 @@ export class ReguaCobrancaService {
     offsetDays: number
     channel: string
     template: string
+    emailSubject?: string | null
     isActive?: boolean
   }) {
     return prisma.billingRule.create({ data: { ...data, isActive: data.isActive ?? true } })
@@ -55,6 +56,7 @@ export class ReguaCobrancaService {
       offsetDays: number
       channel: string
       template: string
+      emailSubject: string | null
       isActive: boolean
     }>,
   ) {

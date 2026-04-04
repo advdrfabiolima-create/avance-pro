@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   LayoutDashboard, Receipt, ArrowLeftRight,
-  RefreshCw, BarChart2, Settings, DollarSign, GitMerge, Zap, Landmark,
+  RefreshCw, BarChart2, Settings, DollarSign, GitMerge, Zap, Landmark, AlertTriangle,
 } from 'lucide-react'
 import VisaoGeral from './VisaoGeral'
 import ConfiguracoesBilling from './ConfiguracoesBilling'
@@ -11,6 +11,7 @@ import RegraCobrancaPage from './RegraCobranca'
 import BancosPage from './Bancos'
 import PagamentosPage from '../Pagamentos/index'
 import CobrancasPage from '../Cobrancas/index'
+import InadimplenciaPage from './Inadimplencia'
 import MovimentosPage from '../Movimentos/index'
 import RecorrenciasPage from '../Recorrencias/index'
 import RelatoriosPage from '../Relatorios/index'
@@ -18,7 +19,7 @@ import RelatoriosPage from '../Relatorios/index'
 // ─── Tab definitions ──────────────────────────────────────────────────────────
 
 type TabId = 'visao-geral' | 'cobrancas' | 'movimentacoes' | 'recorrencia' | 'conciliacao' | 'relatorios' | 'regua' | 'bancos' | 'configuracoes'
-type CobrancasSubTab = 'mensalidades' | 'avulsas'
+type CobrancasSubTab = 'mensalidades' | 'avulsas' | 'inadimplencia'
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'visao-geral',     label: 'Visão Geral',    icon: <LayoutDashboard size={14} /> },
@@ -55,8 +56,9 @@ function CobrancasTab() {
       {/* Sub-tabs */}
       <div className="flex items-center gap-1 border-b">
         {([
-          { id: 'mensalidades' as const, label: 'Mensalidades', icon: <DollarSign size={13} /> },
-          { id: 'avulsas'      as const, label: 'Cobranças Avulsas', icon: <Receipt size={13} /> },
+          { id: 'mensalidades'  as const, label: 'Mensalidades',      icon: <DollarSign size={13} /> },
+          { id: 'avulsas'       as const, label: 'Cobranças Avulsas', icon: <Receipt size={13} /> },
+          { id: 'inadimplencia' as const, label: 'Inadimplência',     icon: <AlertTriangle size={13} /> },
         ]).map((s) => (
           <button
             key={s.id}
@@ -76,8 +78,10 @@ function CobrancasTab() {
       <div key={sub} className="animate-in fade-in slide-in-from-bottom-1 duration-150">
         {sub === 'mensalidades' ? (
           <PagamentosPage embedded />
-        ) : (
+        ) : sub === 'avulsas' ? (
           <CobrancasPage embedded />
+        ) : (
+          <InadimplenciaPage />
         )}
       </div>
     </div>

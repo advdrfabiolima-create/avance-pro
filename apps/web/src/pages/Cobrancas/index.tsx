@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Receipt, Plus, X, Send, QrCode, ExternalLink, MessageSquare, Copy, Check, History, Phone, PhoneOff } from 'lucide-react'
+import { Receipt, Plus, X, Send, QrCode, ExternalLink, MessageSquare, Copy, Check, History, Phone, PhoneOff, Mail } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Label } from '../../components/ui/Label'
@@ -443,6 +443,7 @@ interface ModalHistoricoProps {
 const ACTION_LABELS: Record<string, string> = {
   whatsapp_sent: 'WhatsApp enviado',
   whatsapp_prepared: 'Mensagem copiada',
+  email_sent: 'E-mail enviado',
   internal_alert: 'Alerta interno',
   manual: 'Ação manual',
   ignored: 'Ignorada',
@@ -517,6 +518,115 @@ function ModalHistorico({ cobranca, onClose }: ModalHistoricoProps) {
   )
 }
 
+// ─── Modal Email ─────────────────────────────────────────────────────────────
+
+interface ModalEmailCobrancaProps {
+  cobranca: Cobranca
+  onClose: () => void
+  onEnviado: () => void
+}
+
+function ModalEmailCobranca({ cobranca, onClose, onEnviado }: ModalEmailCobrancaProps) {
+  const responsavel = cobranca.aluno.responsaveis?.[0]?.responsavel ?? null
+  const email = responsavel?.email ?? null
+
+  const [subject, setSubject] = useState(`Cobrança — ${cobranca.aluno.nome}`)
+  const [template, setTemplate] = useState(
+    `Olá, {{nome_responsavel}}!\n\nInformamos que há uma cobrança para *{{nome_aluno}}* no valor de *{{valor}}* com vencimento em *{{vencimento}}*.\n\nCaso tenha dúvidas, entre em contato conosco.\n\nAtenciosamente,\nEquipe Kumon`,
+  )
+  const [loading, setLoading] = useState(false)
+  const [enviado, setEnviado] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleEnviar() {
+    if (!email) return
+    setLoading(true); setError(null)
+    try {
+      await cobrancasService.enviarEmail(cobranca.id, subject, template)
+      setEnviado(true)
+      onEnviado()
+    } catch (e: any) {
+      setError(e?.response?.data?.error ?? 'Erro ao enviar e-mail.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-md rounded-xl border bg-card shadow-lg">
+        <div className="flex items-center justify-between border-b px-6 py-4">
+          <h2 className="flex items-center gap-2 text-base font-semibold">
+            <Mail size={16} className="text-purple-600" />
+            Enviar por E-mail
+          </h2>
+          <button onClick={onClose} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="space-y-4 px-6 py-5">
+          {enviado ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
+                <Check size={16} /> E-mail enviado com sucesso para <strong>{email}</strong>!
+              </div>
+              <div className="flex justify-end">
+                <Button size="sm" onClick={onClose}>Fechar</Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm ${email ? 'border-purple-200 bg-purple-50' : 'border-orange-200 bg-orange-50'}`}>
+                <Mail size={14} className={email ? 'text-purple-600 shrink-0' : 'text-orange-600 shrink-0'} />
+                <span className={email ? 'text-purple-800' : 'text-orange-800'}>
+                  {email
+                    ? <>{responsavel?.nome ?? 'Responsável'} — <strong>{email}</strong></>
+                    : <>Nenhum e-mail cadastrado para o responsável.</>}
+                </span>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Assunto</Label>
+                <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Mensagem</Label>
+                <textarea
+                  className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                  rows={5}
+                  value={template}
+                  onChange={(e) => setTemplate(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Variáveis: {'{{nome_aluno}}'}, {'{{nome_responsavel}}'}, {'{{valor}}'}, {'{{vencimento}}'}.
+                </p>
+              </div>
+
+              {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+
+              <div className="flex justify-end gap-2 border-t pt-4">
+                <Button variant="outline" size="sm" onClick={onClose} disabled={loading}>Cancelar</Button>
+                <Button
+                  size="sm"
+                  onClick={handleEnviar}
+                  disabled={loading || !email}
+                  className="gap-1.5"
+                  title={!email ? 'Sem e-mail cadastrado' : undefined}
+                >
+                  <Mail size={13} />
+                  {loading ? 'Enviando...' : 'Enviar E-mail'}
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const PAGE_SIZE = 15
 
 export default function CobrancasPage({ embedded = false }: { embedded?: boolean }) {
@@ -529,6 +639,7 @@ export default function CobrancasPage({ embedded = false }: { embedded?: boolean
   const [gatewayAtivo, setGatewayAtivo] = useState(false)
   const [enviando, setEnviando] = useState<Cobranca | null>(null)
   const [wppCobranca, setWppCobranca] = useState<Cobranca | null>(null)
+  const [emailCobranca, setEmailCobranca] = useState<Cobranca | null>(null)
   const [historicoCobranca, setHistoricoCobranca] = useState<Cobranca | null>(null)
 
   const fetchData = useCallback(async (status: string, p: number) => {
@@ -667,6 +778,18 @@ export default function CobrancasPage({ embedded = false }: { embedded?: boolean
                             <span className="hidden sm:inline">WhatsApp</span>
                           </Button>
                         )}
+                        {/* E-mail — para cobranças em aberto */}
+                        {c.status !== 'paga' && c.status !== 'cancelada' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEmailCobranca(c)}
+                            title="Enviar cobrança por E-mail"
+                            className="gap-1 text-purple-700 border-purple-300 hover:bg-purple-50 px-2"
+                          >
+                            <Mail size={13} />
+                          </Button>
+                        )}
                         {gatewayAtivo && c.status === 'aguardando' && (
                           <Button variant="outline" size="sm" onClick={() => setEnviando(c)} title="Enviar via Asaas">
                             <Send size={13} /> Enviar
@@ -744,6 +867,13 @@ export default function CobrancasPage({ embedded = false }: { embedded?: boolean
         <ModalWhatsapp
           cobranca={wppCobranca}
           onClose={() => setWppCobranca(null)}
+          onEnviado={() => void fetchData(filtroStatus, page)}
+        />
+      )}
+      {emailCobranca && (
+        <ModalEmailCobranca
+          cobranca={emailCobranca}
+          onClose={() => setEmailCobranca(null)}
           onEnviado={() => void fetchData(filtroStatus, page)}
         />
       )}

@@ -5,6 +5,8 @@ import { criarCobrancaSchema, atualizarCobrancaSchema, filtrosCobrancaSchema } f
 import { billingCore } from '../../shared/billing/billing.core'
 import { prisma } from '@kumon-advance/db'
 import { notificacaoService } from '../notificacoes/notificacoes.service'
+import { enviarEmailCobranca } from '../../shared/email/billing-email.service'
+import { reguaCobrancaService } from '../regua-cobranca/regua-cobranca.service'
 
 interface ErroNegocio { statusCode: number; message: string }
 function isErroNegocio(err: unknown): err is ErroNegocio {
@@ -86,6 +88,64 @@ export async function cobrancasRoutes(app: FastifyInstance): Promise<void> {
     } catch (err) {
       if (isErroNegocio(err)) return reply.status(err.statusCode).send({ success: false, error: err.message })
       return reply.status(500).send({ success: false, error: 'Erro ao cancelar cobrança' })
+    }
+  })
+
+  // GET /inadimplencia — lista cobranças vencidas
+  app.get('/inadimplencia', { preHandler: autenticar }, async (request, reply) => {
+    const { faixa, alunoId, page, pageSize } = request.query as {
+      faixa?: string; alunoId?: string; page?: string; pageSize?: string
+    }
+    try {
+      const resultado = await cobrancaService.listarInadimplencia({
+        faixa,
+        alunoId,
+        page: page ? parseInt(page) : 1,
+        pageSize: pageSize ? parseInt(pageSize) : 20,
+      })
+      return reply.send({ success: true, data: resultado })
+    } catch (err) {
+      return reply.status(500).send({ success: false, error: 'Erro ao listar inadimplência' })
+    }
+  })
+
+  // GET /resumo-inadimplencia — KPIs de inadimplência
+  app.get('/resumo-inadimplencia', { preHandler: autenticar }, async (_request, reply) => {
+    try {
+      const resumo = await cobrancaService.resumoInadimplencia()
+      return reply.send({ success: true, data: resumo })
+    } catch (err) {
+      return reply.status(500).send({ success: false, error: 'Erro ao calcular resumo de inadimplência' })
+    }
+  })
+
+  // POST /:id/enviar-email — envia e-mail de cobrança via Brevo
+  app.post('/:id/enviar-email', { preHandler: apenasAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const { subject, template } = (request.body ?? {}) as { subject?: string; template?: string }
+
+    if (!subject || !template) {
+      return reply.status(400).send({ success: false, error: 'subject e template são obrigatórios' })
+    }
+
+    try {
+      await enviarEmailCobranca({ cobrancaId: id, subject, template })
+
+      // Registra no histórico de ações
+      await reguaCobrancaService.logAction({
+        cobrancaId: id,
+        actionType: 'email_sent',
+        channel: 'email',
+        messageSnapshot: template,
+        status: 'enviado',
+        triggeredBy: 'manual',
+      })
+
+      return reply.send({ success: true })
+    } catch (err) {
+      if (isErroNegocio(err)) return reply.status(err.statusCode).send({ success: false, error: err.message })
+      const msg = (err as any)?.message ?? 'Erro ao enviar e-mail'
+      return reply.status(500).send({ success: false, error: msg })
     }
   })
 

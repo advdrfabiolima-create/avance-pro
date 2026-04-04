@@ -542,9 +542,10 @@ model BillingRule {
   eventType  String   @map("event_type") @db.VarChar(20)
   offsetDays Int      @default(0) @map("offset_days")
   /// whatsapp | internal | email | webhook
-  channel    String   @db.VarChar(30)
-  template   String   @db.Text
-  isActive   Boolean  @default(true) @map("is_active")
+  channel      String   @db.VarChar(30)
+  template     String   @db.Text
+  emailSubject String?  @map("email_subject") @db.VarChar(255)
+  isActive     Boolean  @default(true) @map("is_active")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 

@@ -112,6 +112,7 @@ function ModalRegra({ rule, onClose, onSaved }: ModalRegraProps) {
   const [offsetDays, setOffsetDays] = useState(rule?.offsetDays ?? 3)
   const [channel, setChannel] = useState<Channel>(rule?.channel ?? 'whatsapp')
   const [template, setTemplate] = useState(rule?.template ?? '')
+  const [emailSubject, setEmailSubject] = useState(rule?.emailSubject ?? '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -125,7 +126,10 @@ function ModalRegra({ rule, onClose, onSaved }: ModalRegraProps) {
     setLoading(true)
     setError(null)
     try {
-      const data = { name, eventType, offsetDays, channel, template, isActive: true }
+      const data = {
+        name, eventType, offsetDays, channel, template, isActive: true,
+        emailSubject: channel === 'email' ? (emailSubject.trim() || null) : null,
+      }
       if (rule) {
         await reguaCobrancaService.updateRule(rule.id, data)
       } else {
@@ -206,6 +210,18 @@ function ModalRegra({ rule, onClose, onSaved }: ModalRegraProps) {
               <option value="webhook">Webhook</option>
             </select>
           </div>
+
+          {channel === 'email' && (
+            <div className="space-y-1.5">
+              <Label htmlFor="email-subject">Assunto do e-mail</Label>
+              <Input
+                id="email-subject"
+                value={emailSubject}
+                onChange={(e) => setEmailSubject(e.target.value)}
+                placeholder="Ex: Lembrete de mensalidade — {{nome_aluno}}"
+              />
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="template">Template da mensagem</Label>

@@ -13,6 +13,7 @@
 import cron from 'node-cron'
 import { prisma } from '@kumon-advance/db'
 import { reguaCobrancaService } from './regua-cobranca.service'
+import { enviarEmailCobranca } from '../../shared/email/billing-email.service'
 
 // ─── Processamento de item individual ────────────────────────────────────────
 
@@ -26,14 +27,13 @@ async function processQueueItem(
     telefone: string | null
     jaAcionada: boolean
   },
-  rule: { id: string; name: string; channel: string; template: string },
+  rule: { id: string; name: string; channel: string; template: string; emailSubject?: string | null },
 ): Promise<void> {
   // Renderiza o template com os dados reais da cobrança
   const mensagem = await reguaCobrancaService.renderTemplateForCharge(rule.template, cobranca.id)
 
   if (rule.channel === 'whatsapp') {
-    // MVP: gera link wa.me e registra como "pendente" (aguarda toque do usuário).
-    // FUTURE: substituir por chamada à WhatsApp Business API.
+    // Gera link wa.me e registra como "pendente" (aguarda toque do usuário)
     const telefoneNum = (cobranca.telefone ?? '').replace(/\D/g, '')
     const waLink = telefoneNum
       ? `https://wa.me/55${telefoneNum}?text=${encodeURIComponent(mensagem)}`
@@ -49,6 +49,20 @@ async function processQueueItem(
       triggeredBy: 'scheduler',
       metadata: { auto: true, waLink },
     })
+  } else if (rule.channel === 'email') {
+    const subject = rule.emailSubject ?? `Lembrete de cobrança — ${cobranca.aluno.nome}`
+    await enviarEmailCobranca({ cobrancaId: cobranca.id, subject, template: rule.template })
+
+    await reguaCobrancaService.logAction({
+      cobrancaId: cobranca.id,
+      billingRuleId: rule.id,
+      actionType: 'email_sent',
+      channel: 'email',
+      messageSnapshot: mensagem,
+      status: 'enviado',
+      triggeredBy: 'scheduler',
+      metadata: { auto: true, subject },
+    })
   } else if (rule.channel === 'internal') {
     // Alerta interno: registra como enviado diretamente (sem confirmação necessária)
     await reguaCobrancaService.logAction({
@@ -62,7 +76,6 @@ async function processQueueItem(
       metadata: { auto: true },
     })
   }
-  // FUTURE: email, webhook
 }
 
 // ─── Motor principal ──────────────────────────────────────────────────────────
