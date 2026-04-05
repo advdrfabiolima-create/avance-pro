@@ -15,7 +15,7 @@ export async function correcaoAvulsaRoutes(app: FastifyInstance): Promise<void> 
 
   // ── GET /api/correcao-avulsa/modelos ──────────────────────────────────────
   // Diagnóstico: lista os modelos Gemini disponíveis para a chave configurada
-  app.get('/modelos', { preHandler: autenticar }, async (_request, reply) => {
+  app.get('/modelos', async (_request, reply) => {
     const apiKey = process.env['GOOGLE_API_KEY']
     if (!apiKey) return reply.status(503).send({ success: false, message: 'GOOGLE_API_KEY não configurada' })
 
