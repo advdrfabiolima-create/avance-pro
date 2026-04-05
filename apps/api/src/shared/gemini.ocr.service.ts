@@ -126,7 +126,10 @@ function extractJsonArray(text: string): any[] {
 
   // Tenta match de array JSON
   const match = stripped.match(/\[[\s\S]*\]/)
-  if (!match) throw new Error('JSON não encontrado na resposta do Gemini')
+  if (!match) {
+    console.error('[Gemini] Resposta bruta (sem JSON array):', stripped.slice(0, 500))
+    throw new Error('JSON não encontrado na resposta do Gemini')
+  }
   try { return JSON.parse(match[0]) } catch { throw new Error('JSON inválido retornado pelo Gemini') }
 }
 
