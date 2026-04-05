@@ -1,0 +1,5 @@
+export { analisarRespostaPedagogicamente } from './motor'
+export type { EntradaMotor, SaidaMotor, CriteriosCorrecao, StatusCorrecaoPedagogica, ModoCorrecao, DebugMotor } from './types'
+export { resolverCriterios, CRITERIOS_PORTUGUES, CRITERIOS_MATEMATICA, CRITERIOS_INGLES, CRITERIOS_PADRAO } from './criterios'
+export { simboloPara, SIMBOLOS } from './symbols'
+export { parseNumero, numerosEquivalentes } from './engines/matematica'

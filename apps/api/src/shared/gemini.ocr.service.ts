@@ -9,6 +9,7 @@
  */
 
 import https from 'https'
+import { analisarRespostaPedagogicamente } from './correction-engine'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -240,22 +241,47 @@ Regras adicionais:
   ]
 
   return raw.map((r: any): ResultadoQuestaoEstruturado => {
-    const status: StatusCorrecaoQuestao = VALID_STATUS.includes(r.statusCorrecao)
+    const tipo = String(r.tipo ?? 'objetiva')
+    const respostaAluno = r.respostaAluno != null ? String(r.respostaAluno) : null
+    const respostaGabarito = String(r.respostaGabarito ?? '')
+    const confianca = r.confianca != null ? parseFloat(String(r.confianca)) : null
+
+    // Status base da IA
+    let status: StatusCorrecaoQuestao = VALID_STATUS.includes(r.statusCorrecao)
       ? r.statusCorrecao
       : (r.correta ? 'correta' : 'revisar')
+    let correta = Boolean(r.correta)
+
+    // ── Motor pedagógico (pós-processamento para questões não-discursivas) ──
+    // Para objetivas e numéricas onde a IA extraiu o texto do aluno com
+    // confiança razoável, o motor local é mais preciso que o Gemini para
+    // classificar o TIPO de erro. Confiança mínima: 0.55 (abaixo → IA decide).
+    if (tipo !== 'discursiva' && respostaAluno !== null && (confianca === null || confianca >= 0.55)) {
+      const motorResult = analisarRespostaPedagogicamente({
+        disciplina: disciplina ?? 'geral',
+        gabarito: respostaGabarito,
+        respostaAluno,
+      })
+      // Motor só sobrescreve quando chega a uma conclusão diferente de 'revisar'
+      // ou quando a IA também marcou como revisar (ambos concordam)
+      if (motorResult.status !== 'revisar' || status === 'revisar') {
+        status = motorResult.status as StatusCorrecaoQuestao
+        correta = motorResult.status === 'correta'
+      }
+    }
 
     return {
       questaoOrdem: Number(r.questaoOrdem),
-      tipo: String(r.tipo ?? 'objetiva'),
-      respostaGabarito: String(r.respostaGabarito ?? ''),
-      respostaAluno: r.respostaAluno != null ? String(r.respostaAluno) : null,
-      confianca: r.confianca != null ? parseFloat(String(r.confianca)) : null,
-      correta: Boolean(r.correta),
+      tipo,
+      respostaGabarito,
+      respostaAluno,
+      confianca,
+      correta,
       statusCorrecao: status,
       textoDetectado: r.textoDetectado != null ? String(r.textoDetectado) : null,
       avaliacaoIA: (['correto', 'parcial', 'incorreto'].includes(r.avaliacaoIA) ? r.avaliacaoIA : null) as ResultadoQuestaoEstruturado['avaliacaoIA'],
       justificativa: r.justificativa != null ? String(r.justificativa) : null,
-      revisadaManual: (r.tipo === 'discursiva' || r.statusCorrecao === 'revisar') ? false : true,
+      revisadaManual: (tipo === 'discursiva' || status === 'revisar') ? false : true,
     }
   })
 }
