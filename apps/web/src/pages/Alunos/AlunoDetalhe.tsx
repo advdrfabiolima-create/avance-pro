@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft, Pencil, BookOpen, Users, GraduationCap,
   Clock, Target, TrendingUp, AlertTriangle, Calendar, BookMarked, Play, AlertCircle,
-  DollarSign, CheckCircle2, XCircle, Hourglass,
+  DollarSign, CheckCircle2, XCircle, Hourglass, ClipboardList,
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
@@ -17,6 +17,7 @@ import { cobrancasService, type Cobranca, type StatusCobranca } from '../../serv
 import AlunoFormModal from './AlunoFormModal'
 import MatriculaModal from './MatriculaModal'
 import AlunoEvolucao from './AlunoEvolucao'
+import { HistoricoCorrecoes } from '../CorrecaoAvulsa/HistoricoCorrecoes'
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -784,6 +785,32 @@ export default function AlunoDetalhePage() {
 
           {/* Histórico de sessões */}
           <HistoricoSessoes sessoes={sessoes} />
+
+          {/* Correções Avulsas */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <ClipboardList className="h-4 w-4" />
+                  Correções Avulsas
+                </CardTitle>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => navigate(`/correcao-avulsa`)}
+                >
+                  + Nova
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <HistoricoCorrecoes
+                alunoId={aluno.id}
+                compact
+                onNovaCorrecao={() => navigate('/correcao-avulsa')}
+              />
+            </CardContent>
+          </Card>
 
           {/* Histórico financeiro */}
           <HistoricoFinanceiro alunoId={aluno.id} />

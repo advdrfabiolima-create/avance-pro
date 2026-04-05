@@ -1,7 +1,9 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Camera, FileText, Plus, Trash2, CheckCircle2,
   Loader2, RotateCcw, Upload, HelpCircle, ChevronRight, ChevronDown, Search,
+  ClipboardList,
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
@@ -14,6 +16,7 @@ import {
   type StatusCorrecaoQuestao,
 } from '../../services/correcao-avulsa.service'
 import { RevisaoPedagogica } from './RevisaoPedagogica'
+import { HistoricoCorrecoes } from './HistoricoCorrecoes'
 import type { Override } from './QuestionReviewCard'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -301,6 +304,17 @@ function WizardProgress({ etapa }: { etapa: Etapa }) {
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function CorrecaoAvulsaPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const abaParam = searchParams.get('tab') === 'historico' ? 'historico' : 'nova'
+  const alunoIdParam = searchParams.get('alunoId') ?? undefined
+
+  const [aba, setAba] = useState<'nova' | 'historico'>(abaParam)
+
+  function mudarAba(a: 'nova' | 'historico') {
+    setAba(a)
+    setSearchParams(a === 'historico' ? { tab: 'historico' } : {}, { replace: true })
+  }
+
   const [etapa, setEtapa] = useState<Etapa>('configurar')
   const [aluno, setAluno] = useState<AlunoInfo | null>(null)
   const [titulo, setTitulo] = useState('')
@@ -393,14 +407,49 @@ export default function CorrecaoAvulsaPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-slate-800">Correção Avulsa</h1>
-        <p className="text-sm text-slate-500 mt-0.5">
-          Fotografe a folha respondida — IA corrige, classifica e você valida cada resposta.
-        </p>
+      {/* Header + abas */}
+      <div className="space-y-4">
+        <div>
+          <h1 className="text-xl font-bold text-slate-800">Correção Avulsa</h1>
+          <p className="text-sm text-slate-500 mt-0.5">
+            Fotografe a folha respondida — IA corrige, classifica e você valida cada resposta.
+          </p>
+        </div>
+        <div className="flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
+          <button
+            onClick={() => mudarAba('nova')}
+            className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-medium transition-colors ${
+              aba === 'nova'
+                ? 'bg-white shadow-sm text-slate-800'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <Camera size={14} /> Nova Correção
+          </button>
+          <button
+            onClick={() => mudarAba('historico')}
+            className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-medium transition-colors ${
+              aba === 'historico'
+                ? 'bg-white shadow-sm text-slate-800'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <ClipboardList size={14} /> Histórico
+          </button>
+        </div>
       </div>
 
+      {/* ── Aba: Histórico ─────────────────────────────────────────────────── */}
+      {aba === 'historico' && (
+        <HistoricoCorrecoes
+          alunoId={alunoIdParam}
+          onNovaCorrecao={() => mudarAba('nova')}
+        />
+      )}
+
+      {/* ── Aba: Nova Correção ─────────────────────────────────────────────── */}
+      {aba === 'nova' && (
+      <>
       <WizardProgress etapa={etapa} />
 
       {erro && <Alert variant="destructive"><AlertDescription>{erro}</AlertDescription></Alert>}
@@ -571,6 +620,8 @@ export default function CorrecaoAvulsaPage() {
             <Camera size={15} /> Corrigir com IA
           </Button>
         </div>
+      )}
+      </>
       )}
     </div>
   )
