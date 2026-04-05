@@ -244,7 +244,8 @@ Regras adicionais:
     parts.unshift({ inline_data: { mime_type: (gabaritoMime ?? 'image/jpeg') === 'application/pdf' ? 'image/jpeg' : (gabaritoMime ?? 'image/jpeg'), data: gabaritoPuro } })
   }
 
-  const content = await callGemini(parts, 3000)
+  // thinking budget baixo: tarefa estruturada não precisa de raciocínio profundo
+  const content = await callGemini(parts, 6000, 512)
   const raw = extractJsonArray(content)
 
   const VALID_STATUS: StatusCorrecaoQuestao[] = [
