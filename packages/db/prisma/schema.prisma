@@ -101,6 +101,15 @@ enum StatusOcr {
   erro
 }
 
+enum StatusCorrecaoQuestao {
+  correta
+  incorreta_por_ortografia
+  incorreta_por_acentuacao
+  incorreta_por_pontuacao
+  incorreta_por_regra
+  revisar
+}
+
 // ─── Usuários ────────────────────────────────────────────────────────────────
 
 model Usuario {
@@ -1020,21 +1029,57 @@ model CorrecaoAvulsa {
   arquivoBase64  String    @db.Text @map("arquivo_base64")
   tipoArquivo    String    @db.VarChar(50) @map("tipo_arquivo")
 
+  // Imagem do gabarito (quando gabaritoFonte = 'foto')
+  gabaritoBase64 String?   @db.Text @map("gabarito_base64")
+  gabaritoMime   String?   @db.VarChar(50) @map("gabarito_mime")
+
   // Gabarito: "manual" (digitado) ou "foto" (extraído por IA)
   gabaritoFonte  String    @default("manual") @db.VarChar(20) @map("gabarito_fonte")
   // [{ordem, tipo, resposta}]
   gabarito       Json
 
-  // Resultado processado pela IA
-  // [{questaoOrdem, tipo, respostaGabarito, respostaAluno, confianca, correta}]
+  // Resultado processado pela IA (legado)
   resultadoJson  Json?     @map("resultado_json")
+
+  // Totais calculados após processamento
+  totalQuestoes  Int?      @map("total_questoes")
+  totalAcertos   Int?      @map("total_acertos")
+  percentual     Int?
 
   status         String    @default("pendente") @db.VarChar(20)
   erroMensagem   String?   @db.Text @map("erro_mensagem")
 
   criadoEm      DateTime  @default(now()) @map("criado_em")
+  confirmadoEm  DateTime? @map("confirmado_em")
+  atualizadoEm  DateTime  @updatedAt @map("atualizado_em")
 
-  aluno          Aluno     @relation(fields: [alunoId], references: [id])
+  aluno          Aluno                  @relation(fields: [alunoId], references: [id])
+  questoes       CorrecaoAvulsaQuestao[]
 
   @@map("correcoes_avulsas")
+}
+
+model CorrecaoAvulsaQuestao {
+  id               String                 @id @default(uuid())
+  correcaoId       String                 @map("correcao_id")
+  ordem            Int
+  tipo             String                 @db.VarChar(20)
+  respostaGabarito String                 @db.VarChar(500) @map("resposta_gabarito")
+  respostaAluno    String?                @db.VarChar(500) @map("resposta_aluno")
+  textoDetectado   String?                @db.Text @map("texto_detectado")
+  confianca        Float?
+  statusCorrecao   StatusCorrecaoQuestao  @default(revisar) @map("status_correcao")
+  correta          Boolean                @default(false)
+  avaliacaoIA      String?                @db.VarChar(20) @map("avaliacao_ia")
+  justificativa    String?                @db.Text
+  revisadaManual   Boolean                @default(false) @map("revisada_manual")
+  decisaoManual    Boolean?               @map("decisao_manual")
+  statusManual     StatusCorrecaoQuestao? @map("status_manual")
+  criadoEm         DateTime               @default(now()) @map("criado_em")
+  atualizadoEm     DateTime               @updatedAt @map("atualizado_em")
+
+  correcao CorrecaoAvulsa @relation(fields: [correcaoId], references: [id], onDelete: Cascade)
+
+  @@unique([correcaoId, ordem])
+  @@map("correcoes_avulsas_questoes")
 }

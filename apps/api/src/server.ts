@@ -42,6 +42,13 @@ async function applyPendingColumns() {
   const queries = [
     `ALTER TABLE "billing_rules" ADD COLUMN IF NOT EXISTS "email_subject" VARCHAR(255)`,
     `ALTER TABLE "config_empresa" ADD COLUMN IF NOT EXISTS "email_sender_name" VARCHAR(200)`,
+    `ALTER TABLE "correcoes_avulsas" ADD COLUMN IF NOT EXISTS "gabarito_base64" TEXT`,
+    `ALTER TABLE "correcoes_avulsas" ADD COLUMN IF NOT EXISTS "gabarito_mime" VARCHAR(50)`,
+    `ALTER TABLE "correcoes_avulsas" ADD COLUMN IF NOT EXISTS "total_questoes" INTEGER`,
+    `ALTER TABLE "correcoes_avulsas" ADD COLUMN IF NOT EXISTS "total_acertos" INTEGER`,
+    `ALTER TABLE "correcoes_avulsas" ADD COLUMN IF NOT EXISTS "percentual" INTEGER`,
+    `ALTER TABLE "correcoes_avulsas" ADD COLUMN IF NOT EXISTS "confirmado_em" TIMESTAMP(3)`,
+    `ALTER TABLE "correcoes_avulsas" ADD COLUMN IF NOT EXISTS "atualizado_em" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
   ]
   for (const sql of queries) {
     await prisma.$executeRawUnsafe(sql)
