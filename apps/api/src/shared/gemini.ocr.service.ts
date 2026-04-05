@@ -334,7 +334,7 @@ Regras:
   const content = await callGemini([
     { inline_data: { mime_type: mimeType === 'application/pdf' ? 'image/jpeg' : mimeType, data: imagemPura } },
     { text: prompt },
-  ], 1000)
+  ], 4000)
 
   const raw = extractJsonArray(content)
 
