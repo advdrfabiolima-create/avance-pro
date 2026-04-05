@@ -121,7 +121,11 @@ async function callGemini(parts: any[], maxOutputTokens = 2000): Promise<string>
 }
 
 function extractJsonArray(text: string): any[] {
-  const match = text.match(/\[[\s\S]*\]/)
+  // Remove markdown code fences (```json ... ``` ou ``` ... ```)
+  const stripped = text.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim()
+
+  // Tenta match de array JSON
+  const match = stripped.match(/\[[\s\S]*\]/)
   if (!match) throw new Error('JSON não encontrado na resposta do Gemini')
   try { return JSON.parse(match[0]) } catch { throw new Error('JSON inválido retornado pelo Gemini') }
 }
