@@ -13,6 +13,31 @@ const GabaritoItemSchema = z.object({
 
 export async function correcaoAvulsaRoutes(app: FastifyInstance): Promise<void> {
 
+  // ── GET /api/correcao-avulsa/modelos ──────────────────────────────────────
+  // Diagnóstico: lista os modelos Gemini disponíveis para a chave configurada
+  app.get('/modelos', { preHandler: autenticar }, async (_request, reply) => {
+    const apiKey = process.env['GOOGLE_API_KEY']
+    if (!apiKey) return reply.status(503).send({ success: false, message: 'GOOGLE_API_KEY não configurada' })
+
+    const https = await import('https')
+    const result: string = await new Promise((resolve, reject) => {
+      const req = https.request(
+        { hostname: 'generativelanguage.googleapis.com', path: `/v1beta/models?key=${apiKey}`, method: 'GET' },
+        (res) => { let d = ''; res.on('data', (c) => { d += c }); res.on('end', () => resolve(d)) }
+      )
+      req.on('error', reject)
+      req.end()
+    })
+
+    try {
+      const parsed = JSON.parse(result)
+      const nomes = (parsed.models ?? []).map((m: any) => m.name)
+      return reply.send({ success: true, data: nomes, raw: parsed })
+    } catch {
+      return reply.send({ success: false, raw: result })
+    }
+  })
+
   // ── POST /api/correcao-avulsa/extrair-gabarito ────────────────────────────
   // Envia foto do gabarito → Gemini extrai as respostas corretas
   app.post<{
