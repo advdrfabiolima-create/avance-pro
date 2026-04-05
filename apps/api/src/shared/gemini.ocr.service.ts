@@ -94,7 +94,7 @@ function httpsPost(url: string, body: object): Promise<string> {
 
 // ─── Gemini helper (filtra thinking parts) ────────────────────────────────────
 
-async function callGemini(parts: any[], maxOutputTokens = 2000): Promise<string> {
+async function callGemini(parts: any[], maxOutputTokens = 2000, thinkingBudget = 1024): Promise<string> {
   const apiKey = process.env['GOOGLE_API_KEY']
   if (!apiKey) throw new Error('GOOGLE_API_KEY não configurada')
 
@@ -102,7 +102,11 @@ async function callGemini(parts: any[], maxOutputTokens = 2000): Promise<string>
 
   const responseText = await httpsPost(url, {
     contents: [{ parts }],
-    generationConfig: { temperature: 0.1, maxOutputTokens },
+    generationConfig: {
+      temperature: 0.1,
+      maxOutputTokens,
+      thinkingConfig: { thinkingBudget },
+    },
   })
 
   let parsed: any
@@ -331,10 +335,11 @@ Regras:
 - Se a resposta for texto discursivo, tipo = "discursiva"
 - Inclua TODAS as questões que conseguir identificar na imagem`
 
+  // thinking budget baixo: extração simples não precisa de raciocínio profundo
   const content = await callGemini([
     { inline_data: { mime_type: mimeType === 'application/pdf' ? 'image/jpeg' : mimeType, data: imagemPura } },
     { text: prompt },
-  ], 4000)
+  ], 4000, 512)
 
   const raw = extractJsonArray(content)
 
