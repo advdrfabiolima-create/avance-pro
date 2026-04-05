@@ -49,6 +49,8 @@ async function applyPendingColumns() {
     `ALTER TABLE "correcoes_avulsas" ADD COLUMN IF NOT EXISTS "percentual" INTEGER`,
     `ALTER TABLE "correcoes_avulsas" ADD COLUMN IF NOT EXISTS "confirmado_em" TIMESTAMP(3)`,
     `ALTER TABLE "correcoes_avulsas" ADD COLUMN IF NOT EXISTS "atualizado_em" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
+    // Enum: adiciona valor novo sem quebrar dados existentes
+    `ALTER TYPE "StatusCorrecaoQuestao" ADD VALUE IF NOT EXISTS 'incorreta_por_maiuscula'`,
   ]
   for (const sql of queries) {
     await prisma.$executeRawUnsafe(sql)

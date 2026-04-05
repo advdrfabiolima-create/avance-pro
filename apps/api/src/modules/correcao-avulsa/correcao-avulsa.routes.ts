@@ -233,7 +233,7 @@ export async function correcaoAvulsaRoutes(app: FastifyInstance): Promise<void> 
       questoes: z.array(z.object({
         ordem: z.number().int().min(1),
         decisaoManual: z.boolean(),
-        statusManual: z.enum(['correta', 'incorreta_por_ortografia', 'incorreta_por_acentuacao', 'incorreta_por_pontuacao', 'incorreta_por_regra', 'revisar']),
+        statusManual: z.enum(['correta', 'incorreta_por_ortografia', 'incorreta_por_acentuacao', 'incorreta_por_pontuacao', 'incorreta_por_maiuscula', 'incorreta_por_regra', 'revisar']),
       })).min(1),
     }).safeParse(request.body)
 

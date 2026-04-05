@@ -5,6 +5,7 @@ export type StatusCorrecaoQuestao =
   | 'incorreta_por_ortografia'
   | 'incorreta_por_acentuacao'
   | 'incorreta_por_pontuacao'
+  | 'incorreta_por_maiuscula'
   | 'incorreta_por_regra'
   | 'revisar'
 

@@ -18,6 +18,7 @@ export type StatusCorrecaoQuestao =
   | 'incorreta_por_ortografia'
   | 'incorreta_por_acentuacao'
   | 'incorreta_por_pontuacao'
+  | 'incorreta_por_maiuscula'
   | 'incorreta_por_regra'
   | 'revisar'
 
@@ -237,7 +238,7 @@ Regras adicionais:
 
   const VALID_STATUS: StatusCorrecaoQuestao[] = [
     'correta', 'incorreta_por_ortografia', 'incorreta_por_acentuacao',
-    'incorreta_por_pontuacao', 'incorreta_por_regra', 'revisar',
+    'incorreta_por_pontuacao', 'incorreta_por_maiuscula', 'incorreta_por_regra', 'revisar',
   ]
 
   return raw.map((r: any): ResultadoQuestaoEstruturado => {
@@ -252,6 +253,9 @@ Regras adicionais:
       : (r.correta ? 'correta' : 'revisar')
     let correta = Boolean(r.correta)
 
+    // Justificativa do motor (sobrescreve Gemini para não-discursivas)
+    let motorJustificativa: string | undefined
+
     // ── Motor pedagógico (pós-processamento para questões não-discursivas) ──
     // Para objetivas e numéricas onde a IA extraiu o texto do aluno com
     // confiança razoável, o motor local é mais preciso que o Gemini para
@@ -262,11 +266,15 @@ Regras adicionais:
         gabarito: respostaGabarito,
         respostaAluno,
       })
-      // Motor só sobrescreve quando chega a uma conclusão diferente de 'revisar'
-      // ou quando a IA também marcou como revisar (ambos concordam)
+      // Motor sobrescreve quando chega a conclusão mais específica que 'revisar'
+      // ou quando a IA também marcou como revisar (ambos concordam em incerteza)
       if (motorResult.status !== 'revisar' || status === 'revisar') {
         status = motorResult.status as StatusCorrecaoQuestao
         correta = motorResult.status === 'correta'
+        // Usa explicação do motor (mais precisa que a do Gemini para não-discursivas)
+        if (motorResult.motivos.length > 0) {
+          motorJustificativa = motorResult.motivos[0]!
+        }
       }
     }
 
@@ -280,7 +288,8 @@ Regras adicionais:
       statusCorrecao: status,
       textoDetectado: r.textoDetectado != null ? String(r.textoDetectado) : null,
       avaliacaoIA: (['correto', 'parcial', 'incorreto'].includes(r.avaliacaoIA) ? r.avaliacaoIA : null) as ResultadoQuestaoEstruturado['avaliacaoIA'],
-      justificativa: r.justificativa != null ? String(r.justificativa) : null,
+      // Para não-discursivas: motivo do motor; para discursivas: explicação do Gemini
+      justificativa: motorJustificativa ?? (r.justificativa != null ? String(r.justificativa) : null),
       revisadaManual: (tipo === 'discursiva' || status === 'revisar') ? false : true,
     }
   })
