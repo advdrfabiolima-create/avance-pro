@@ -150,8 +150,8 @@ function AlunoSelect({ value, onChange }: { value: AlunoInfo | null; onChange: (
     let ativo = true
     async function carregar() {
       try {
-        const res = await alunosService.listar({ page: 1, pageSize: 500, ativo: true } as any)
-        const lista = (res.data.data as any).items ?? res.data.data
+        const res = await alunosService.listar({ page: 1, pageSize: 500 } as any)
+        const lista = res.data.data.data
         if (ativo) {
           setAlunos((Array.isArray(lista) ? lista : []).map((a: any) => ({ id: a.id, nome: a.nome })))
         }
