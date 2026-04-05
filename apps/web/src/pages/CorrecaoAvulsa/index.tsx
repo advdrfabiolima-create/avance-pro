@@ -1,7 +1,7 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import {
   Camera, FileText, Plus, Trash2, CheckCircle2,
-  Loader2, RotateCcw, Upload, HelpCircle, ChevronRight,
+  Loader2, RotateCcw, Upload, HelpCircle, ChevronRight, ChevronDown, Search,
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
@@ -134,32 +134,69 @@ function GabaritoManual({ itens, onChange }: { itens: GabaritoItem[]; onChange: 
   )
 }
 
-// ─── AlunoBusca ───────────────────────────────────────────────────────────────
+// ─── AlunoSelect ─────────────────────────────────────────────────────────────
 
 interface AlunoInfo { id: string; nome: string }
 
-function AlunoBusca({ value, onChange }: { value: AlunoInfo | null; onChange: (a: AlunoInfo | null) => void }) {
-  const [busca, setBusca] = useState('')
-  const [sugestoes, setSugestoes] = useState<AlunoInfo[]>([])
-  const [carregando, setCarregando] = useState(false)
+function AlunoSelect({ value, onChange }: { value: AlunoInfo | null; onChange: (a: AlunoInfo | null) => void }) {
+  const [alunos, setAlunos] = useState<AlunoInfo[]>([])
+  const [carregando, setCarregando] = useState(true)
+  const [filtro, setFiltro] = useState('')
+  const [aberto, setAberto] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
 
-  const pesquisar = useCallback(async (termo: string) => {
-    if (termo.length < 2) { setSugestoes([]); return }
-    setCarregando(true)
-    try {
-      const res = await alunosService.listar({ nome: termo, page: 1, pageSize: 8, ativo: true } as any)
-      const lista = (res.data.data as any).items ?? res.data.data
-      setSugestoes((Array.isArray(lista) ? lista : []).map((a: any) => ({ id: a.id, nome: a.nome })))
-    } catch {}
-    setCarregando(false)
+  // Carrega todos os alunos ativos uma única vez
+  useEffect(() => {
+    let ativo = true
+    async function carregar() {
+      try {
+        const res = await alunosService.listar({ page: 1, pageSize: 500, ativo: true } as any)
+        const lista = (res.data.data as any).items ?? res.data.data
+        if (ativo) {
+          setAlunos((Array.isArray(lista) ? lista : []).map((a: any) => ({ id: a.id, nome: a.nome })))
+        }
+      } catch {}
+      if (ativo) setCarregando(false)
+    }
+    carregar()
+    return () => { ativo = false }
   }, [])
 
+  // Fecha ao clicar fora
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setAberto(false)
+        setFiltro('')
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const filtrados = useMemo(() => {
+    if (!filtro.trim()) return alunos
+    const termo = filtro.toLowerCase()
+    return alunos.filter((a) => a.nome.toLowerCase().includes(termo))
+  }, [alunos, filtro])
+
+  function selecionar(aluno: AlunoInfo) {
+    onChange(aluno)
+    setAberto(false)
+    setFiltro('')
+  }
+
+  // Aluno já selecionado
   if (value) {
     return (
       <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
         <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
         <span className="flex-1 text-sm font-medium text-slate-700">{value.nome}</span>
-        <button onClick={() => onChange(null)} className="text-slate-400 hover:text-red-500 transition-colors">
+        <button
+          onClick={() => onChange(null)}
+          className="text-slate-400 hover:text-red-500 transition-colors"
+          title="Trocar aluno"
+        >
           <RotateCcw size={13} />
         </button>
       </div>
@@ -167,25 +204,61 @@ function AlunoBusca({ value, onChange }: { value: AlunoInfo | null; onChange: (a
   }
 
   return (
-    <div className="relative">
-      <Input
-        placeholder="Digite o nome do aluno..."
-        value={busca}
-        onChange={(e) => { setBusca(e.target.value); pesquisar(e.target.value) }}
-        className="text-sm"
-      />
-      {carregando && <Loader2 size={13} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-slate-400" />}
-      {sugestoes.length > 0 && (
-        <div className="absolute z-20 w-full mt-1 rounded-lg border border-slate-200 bg-white shadow-lg py-1">
-          {sugestoes.map((a) => (
-            <button
-              key={a.id}
-              onClick={() => { onChange(a); setSugestoes([]); setBusca('') }}
-              className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 transition-colors"
-            >
-              {a.nome}
-            </button>
-          ))}
+    <div ref={containerRef} className="relative">
+      {/* Botão de abertura */}
+      <button
+        type="button"
+        onClick={() => { setAberto((v) => !v); setFiltro('') }}
+        className="w-full flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500 hover:border-slate-300 hover:bg-slate-50 transition-colors"
+      >
+        {carregando
+          ? <><Loader2 size={13} className="animate-spin text-slate-400" /> Carregando alunos...</>
+          : <><Search size={13} className="text-slate-400" /> Selecionar aluno...</>
+        }
+        <ChevronDown size={13} className="ml-auto text-slate-400" />
+      </button>
+
+      {/* Dropdown */}
+      {aberto && !carregando && (
+        <div className="absolute z-30 w-full mt-1 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
+          {/* Campo de filtro */}
+          <div className="p-2 border-b border-slate-100">
+            <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5">
+              <Search size={12} className="text-slate-400 shrink-0" />
+              <input
+                autoFocus
+                placeholder="Filtrar por nome..."
+                value={filtro}
+                onChange={(e) => setFiltro(e.target.value)}
+                className="flex-1 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+              />
+            </div>
+          </div>
+
+          {/* Lista */}
+          <div className="max-h-52 overflow-y-auto py-1">
+            {filtrados.length === 0 ? (
+              <p className="px-3 py-4 text-center text-sm text-slate-400">
+                {filtro ? 'Nenhum aluno encontrado' : 'Nenhum aluno cadastrado'}
+              </p>
+            ) : (
+              filtrados.map((a) => (
+                <button
+                  key={a.id}
+                  onClick={() => selecionar(a)}
+                  className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                >
+                  {a.nome}
+                </button>
+              ))
+            )}
+          </div>
+
+          {alunos.length > 0 && (
+            <div className="border-t border-slate-100 px-3 py-1.5">
+              <p className="text-[11px] text-slate-400">{alunos.length} aluno(s) cadastrado(s)</p>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -398,7 +471,7 @@ export default function CorrecaoAvulsaPage() {
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-[11px] font-bold text-blue-700">1</span>
               Aluno
             </h2>
-            <AlunoBusca value={aluno} onChange={setAluno} />
+            <AlunoSelect value={aluno} onChange={setAluno} />
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Título (opcional)</label>
