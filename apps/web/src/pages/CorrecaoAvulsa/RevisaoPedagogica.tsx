@@ -157,9 +157,9 @@ export function RevisaoPedagogica({
     }
   }, [questoesPendentes, onOverride])
 
-  // ── Expand all trick: use a key to force re-mount ─────────────────────────
-  const [expandKey, setExpandKey] = useState(0)
-  const handleExpandAll = () => setExpandKey((k) => k + 1)
+  // ── Expand all: incrementa trigger, cada card responde via useEffect ────────
+  const [expandTrigger, setExpandTrigger] = useState(0)
+  const handleExpandAll = () => setExpandTrigger((k) => k + 1)
 
   return (
     <div className="space-y-5 pb-32">
@@ -204,10 +204,11 @@ export function RevisaoPedagogica({
       <div className="space-y-3">
         {questoes.map((q) => (
           <QuestionReviewCard
-            key={`${q.questaoOrdem}-${expandKey}`}
+            key={q.questaoOrdem}
             questao={q}
             override={overrides[q.questaoOrdem]}
             onOverride={onOverride}
+            expandTrigger={expandTrigger}
           />
         ))}
       </div>

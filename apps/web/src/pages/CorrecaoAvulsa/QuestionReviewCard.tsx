@@ -1,4 +1,4 @@
-import { memo, useState } from 'react'
+import { memo, useState, useEffect } from 'react'
 import { ChevronDown, ChevronUp, AlertCircle, CheckCircle2, XCircle, Edit3 } from 'lucide-react'
 import type { ResultadoQuestao, StatusCorrecaoQuestao } from '../../services/correcao-avulsa.service'
 import {
@@ -79,8 +79,15 @@ interface OverrideButtonsProps {
 function OverrideButtons({ currentStatus, isOverridden, onSelect }: OverrideButtonsProps) {
   return (
     <div className="space-y-1.5">
-      <div className="flex items-center gap-1.5">
-        <span className="text-[11px] font-medium text-slate-400 shrink-0">Decisão:</span>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="text-[11px] font-medium text-slate-400 shrink-0">Decisão do professor:</span>
+        {!isOverridden && (
+          <span className="text-[10px] rounded bg-slate-50 border border-slate-200 text-slate-500 px-1.5 py-0.5">
+            IA sugeriu:
+            <span className="font-mono mx-1">{SIMBOLOS[currentStatus]}</span>
+            {STATUS_LABEL[currentStatus]}
+          </span>
+        )}
         {isOverridden && (
           <span className="text-[10px] rounded bg-blue-50 border border-blue-200 text-blue-600 px-1.5 py-0.5 font-semibold">
             editado
@@ -89,7 +96,8 @@ function OverrideButtons({ currentStatus, isOverridden, onSelect }: OverrideButt
       </div>
       <div className="flex flex-wrap gap-1.5">
         {OVERRIDE_OPTIONS.map((opt) => {
-          const isSelected = currentStatus === opt.status
+          // botão só fica destacado quando o professor EXPLICITAMENTE escolheu essa opção
+          const isSelected = isOverridden && currentStatus === opt.status
           return (
             <button
               key={opt.status}
@@ -119,12 +127,14 @@ interface QuestionReviewCardProps {
   questao: ResultadoQuestao
   override?: Override
   onOverride: (ordem: number, decisaoManual: boolean, statusManual: StatusCorrecaoQuestao) => void
+  expandTrigger?: number
 }
 
 export const QuestionReviewCard = memo(function QuestionReviewCard({
   questao,
   override,
   onOverride,
+  expandTrigger,
 }: QuestionReviewCardProps) {
   const statusEfetivo: StatusCorrecaoQuestao = override?.statusManual ?? questao.statusCorrecao
   const corretaEfetiva = override ? override.decisaoManual : questao.correta
@@ -133,6 +143,11 @@ export const QuestionReviewCard = memo(function QuestionReviewCard({
 
   // Expanded by default for pending/incorrect cards
   const [expanded, setExpanded] = useState(() => precisaRevisar || !corretaEfetiva || baixaConfianca)
+
+  // Expand all trigger — quando incrementa, expande este card
+  useEffect(() => {
+    if (expandTrigger) setExpanded(true)
+  }, [expandTrigger])
 
   const respostaText = questao.respostaAluno ?? '—'
   const naoDetectada = questao.respostaAluno === null
@@ -253,4 +268,8 @@ export const QuestionReviewCard = memo(function QuestionReviewCard({
       )}
     </div>
   )
-}, (prev, next) => prev.questao === next.questao && prev.override === next.override)
+}, (prev, next) =>
+  prev.questao === next.questao &&
+  prev.override === next.override &&
+  prev.expandTrigger === next.expandTrigger
+)
