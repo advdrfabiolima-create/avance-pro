@@ -2,7 +2,8 @@ import { useCallback, useMemo, useState } from 'react'
 import { ClipboardCheck, ArrowLeft, AlertCircle, CheckCircle2, XCircle, ChevronDown, RotateCcw, Loader2 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import type { ResultadoQuestao, StatusCorrecaoQuestao } from '../../services/correcao-avulsa.service'
-import { QuestionReviewCard, type Override } from './QuestionReviewCard'
+import { QuestionReviewCard } from './QuestionReviewCard'
+import type { Override } from './QuestionReviewCard'
 import { SIMBOLOS } from './constants'
 
 // ─── Summary cards ────────────────────────────────────────────────────────────
@@ -206,7 +207,7 @@ export function RevisaoPedagogica({
           <QuestionReviewCard
             key={q.questaoOrdem}
             questao={q}
-            override={overrides[q.questaoOrdem]}
+            externalOverride={overrides[q.questaoOrdem]}
             onOverride={onOverride}
             expandTrigger={expandTrigger}
           />

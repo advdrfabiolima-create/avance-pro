@@ -1,4 +1,4 @@
-import { memo, useState, useEffect } from 'react'
+import { memo, useState, useEffect, useRef } from 'react'
 import { ChevronDown, ChevronUp, AlertCircle, CheckCircle2, XCircle, Edit3 } from 'lucide-react'
 import type { ResultadoQuestao, StatusCorrecaoQuestao } from '../../services/correcao-avulsa.service'
 import {
@@ -96,12 +96,16 @@ function OverrideButtons({ currentStatus, isOverridden, onSelect }: OverrideButt
       </div>
       <div className="flex flex-wrap gap-1.5">
         {OVERRIDE_OPTIONS.map((opt) => {
-          // botão só fica destacado quando o professor EXPLICITAMENTE escolheu essa opção
+          // Botão só fica destacado quando o professor EXPLICITAMENTE escolheu essa opção
           const isSelected = isOverridden && currentStatus === opt.status
           return (
             <button
               key={opt.status}
-              onClick={() => onSelect(opt.decisao, opt.status)}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onSelect(opt.decisao, opt.status)
+              }}
               className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition-all ${
                 isSelected ? opt.clsActive : opt.cls
               }`}
@@ -125,32 +129,69 @@ export interface Override {
 
 interface QuestionReviewCardProps {
   questao: ResultadoQuestao
-  override?: Override
   onOverride: (ordem: number, decisaoManual: boolean, statusManual: StatusCorrecaoQuestao) => void
+  /**
+   * Override externo — enviado apenas quando o professor usa "Aceitar sugestões da IA"
+   * ou outra ação global. NÃO muda a cada clique individual de outros cards.
+   */
+  externalOverride?: Override
   expandTrigger?: number
 }
 
 export const QuestionReviewCard = memo(function QuestionReviewCard({
   questao,
-  override,
   onOverride,
+  externalOverride,
   expandTrigger,
 }: QuestionReviewCardProps) {
-  const statusEfetivo: StatusCorrecaoQuestao = override?.statusManual ?? questao.statusCorrecao
-  const corretaEfetiva = override ? override.decisaoManual : questao.correta
-  const precisaRevisar = !questao.revisadaManual && !override
-  const baixaConfianca = questao.confianca !== null && questao.confianca < 0.6
+  // ── Estado de override LOCAL — independente dos outros cards ──────────────
+  // Cada card gerencia seu próprio estado de correção.
+  // O pai recebe notificações via onOverride, mas não controla a renderização.
+  const [localOverride, setLocalOverride] = useState<Override | undefined>(undefined)
 
-  // Expanded by default for pending/incorrect cards
-  const [expanded, setExpanded] = useState(() => precisaRevisar || !corretaEfetiva || baixaConfianca)
+  // Ref para comparar valores sem adicionar ao dep array do useEffect
+  const localOverrideRef = useRef(localOverride)
+  localOverrideRef.current = localOverride
 
-  // Expand all trigger — quando incrementa, expande este card
+  // Sincroniza override externo (e.g., "Aceitar sugestões da IA") → estado local
+  // Só atualiza quando o valor externo realmente muda e é diferente do local atual
+  useEffect(() => {
+    if (externalOverride == null) return
+    const cur = localOverrideRef.current
+    if (
+      cur == null ||
+      cur.statusManual !== externalOverride.statusManual ||
+      cur.decisaoManual !== externalOverride.decisaoManual
+    ) {
+      setLocalOverride(externalOverride)
+    }
+  }, [externalOverride])
+
+  // Expand all trigger
+  const [expanded, setExpanded] = useState(() => {
+    const precisaRevisar = !questao.revisadaManual
+    const baixaConfianca = questao.confianca !== null && questao.confianca < 0.6
+    return precisaRevisar || !questao.correta || baixaConfianca
+  })
+
   useEffect(() => {
     if (expandTrigger) setExpanded(true)
   }, [expandTrigger])
 
+  // ── Valores derivados do estado local ─────────────────────────────────────
+  const override = localOverride
+  const statusEfetivo: StatusCorrecaoQuestao = override?.statusManual ?? questao.statusCorrecao
+  const corretaEfetiva = override ? override.decisaoManual : questao.correta
+  const precisaRevisar = !questao.revisadaManual && !override
+
   const respostaText = questao.respostaAluno ?? '—'
   const naoDetectada = questao.respostaAluno === null
+
+  function handleOverrideSelect(decisaoManual: boolean, statusManual: StatusCorrecaoQuestao) {
+    const ov: Override = { decisaoManual, statusManual }
+    setLocalOverride(ov)                                           // atualiza este card
+    onOverride(questao.questaoOrdem, decisaoManual, statusManual)  // notifica o pai (stats)
+  }
 
   return (
     <div
@@ -160,6 +201,7 @@ export const QuestionReviewCard = memo(function QuestionReviewCard({
     >
       {/* ── Header (sempre visível, clicável) ─────────────────────────────── */}
       <button
+        type="button"
         onClick={() => setExpanded((v) => !v)}
         className="w-full text-left px-4 py-3 flex items-center gap-3"
       >
@@ -186,7 +228,7 @@ export const QuestionReviewCard = memo(function QuestionReviewCard({
               <AlertCircle size={9} /> Pendente
             </span>
           )}
-          {baixaConfianca && !precisaRevisar && (
+          {(questao.confianca !== null && questao.confianca < 0.6) && !precisaRevisar && (
             <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-red-500">
               <AlertCircle size={9} /> Baixa conf.
             </span>
@@ -258,11 +300,11 @@ export const QuestionReviewCard = memo(function QuestionReviewCard({
           {/* Separador */}
           <div className="border-t border-slate-100" />
 
-          {/* Override buttons */}
+          {/* Override buttons — estado local, isolado dos outros cards */}
           <OverrideButtons
             currentStatus={statusEfetivo}
             isOverridden={!!override}
-            onSelect={(decisao, status) => onOverride(questao.questaoOrdem, decisao, status)}
+            onSelect={handleOverrideSelect}
           />
         </div>
       )}
@@ -270,6 +312,6 @@ export const QuestionReviewCard = memo(function QuestionReviewCard({
   )
 }, (prev, next) =>
   prev.questao === next.questao &&
-  prev.override === next.override &&
+  prev.externalOverride === next.externalOverride &&
   prev.expandTrigger === next.expandTrigger
 )
