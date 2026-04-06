@@ -182,7 +182,11 @@ function buildCriteriosDisciplina(disciplina?: string): string {
 - Acentuação é OBRIGATÓRIA. Palavra com acento errado ou faltando → "incorreta_por_acentuacao"
 - Pontuação é OBRIGATÓRIA quando exigida. Falta ou erro de pontuação → "incorreta_por_pontuacao"
 - Erro ortográfico (grafia errada sem ser acento) → "incorreta_por_ortografia"
-- Erro gramatical / regra → "incorreta_por_regra"`
+- Erro gramatical / regra → "incorreta_por_regra"
+- Para questões de LISTA DE PALAVRAS: na justificativa liste CADA palavra escrita errada
+  pelo aluno e a forma correta. Formato: "heroico (correto: heróico), facíl (correto: fácil)"
+  Avalie comparando o que você VÊ na imagem com o gabarito — mesmo que respostaAluno
+  esteja normalizado, o statusCorrecao e justificativa devem refletir a imagem real.`
   }
 
   if (d.includes('matem') || d.includes('math')) {
@@ -283,7 +287,11 @@ Retorne APENAS um JSON válido, sem texto antes ou depois:
 
 Regras adicionais:
 - Se ilegível ou confianca < 0.5: statusCorrecao = "revisar", correta = false
-- Para discursivas: avaliacaoIA = "correto" | "parcial" | "incorreto", justificativa em 1-2 frases
+- Para discursivas: avaliacaoIA = "correto" | "parcial" | "incorreto"
+- justificativa: baseie-se no que você VÊ na imagem original, não no que escreveu
+  em respostaAluno. Se o aluno escreveu "facíl" mas você normalizou para "fácil"
+  em respostaAluno, o statusCorrecao ainda deve ser "incorreta_por_acentuacao"
+  e a justificativa deve listar a palavra errada conforme estava na folha.
 - Retorne uma entrada para CADA questão do gabarito`
 
   const parts: any[] = [
@@ -321,24 +329,38 @@ Regras adicionais:
     // Justificativa do motor
     let motorJustificativa: string | undefined
 
-    // ── Motor pedagógico (pós-processamento para TODAS as questões) ──
-    // Usa respostaAluno (campo principal — instruído a ser verbatim no prompt).
-    // textoDetectado foi testado como fallback mas Gemini também normaliza acentos
-    // nesse campo, gerando falsos positivos (ex: "café" correto → flagged wrong).
+    // ── Motor pedagógico (pós-processamento) ────────────────────────────────
+    // Regra de prioridade:
+    // • Se Gemini já disse "incorreta_por_X" → motor NÃO sobrescreve com "correta"
+    //   (Gemini viu a imagem real; OCR pode ter normalizado respostaAluno)
+    // • Se Gemini disse "correta" ou "revisar" → motor pode reclassificar
+    // • Se ambos encontraram erro → mantém status do Gemini, usa motivos do motor
+    //   para justificativa mais detalhada (por palavra)
     if (respostaAluno !== null) {
       const motorResult = analisarRespostaPedagogicamente({
         disciplina: disciplina ?? 'geral',
         gabarito: respostaGabarito,
         respostaAluno,
       })
-      if (motorResult.status !== 'revisar' || status === 'revisar') {
-        status = motorResult.status as StatusCorrecaoQuestao
-        correta = motorResult.status === 'correta'
-        if (motorResult.motivos.length > 0) {
-          // Junta TODOS os motivos (para listas de palavras, cada erro é listado)
-          motorJustificativa = motorResult.motivos.join(' | ')
+
+      const geminiJaDetectouErro = status !== 'correta' && status !== 'revisar'
+      const motorDetectouErro = motorResult.status !== 'correta' && motorResult.status !== 'revisar'
+
+      if (!geminiJaDetectouErro) {
+        // Gemini não tinha certeza (correta ou revisar) → motor decide
+        if (motorResult.status !== 'revisar' || status === 'revisar') {
+          status = motorResult.status as StatusCorrecaoQuestao
+          correta = motorResult.status === 'correta'
+          if (motorResult.motivos.length > 0) {
+            motorJustificativa = motorResult.motivos.join(' | ')
+          }
         }
+      } else if (motorDetectouErro && motorResult.motivos.length > 0) {
+        // Gemini E motor encontraram erros → usa motivos do motor (mais específicos)
+        // mas mantém o status do Gemini (ele viu a imagem real)
+        motorJustificativa = motorResult.motivos.join(' | ')
       }
+      // Se Gemini disse incorreta e motor disse correta → silêncio (OCR normalizou)
     }
 
     // ── Ajustes aprendidos (3ª camada, após motor) ───────────────────────────
