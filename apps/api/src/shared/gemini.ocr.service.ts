@@ -93,7 +93,14 @@ function httpsPost(url: string, body: object): Promise<string> {
   })
 }
 
-// ─── Gemini helper (filtra thinking parts) ────────────────────────────────────
+// ─── Gemini helper (filtra thinking parts + retry em rate-limit) ─────────────
+
+const GEMINI_MAX_RETRIES = 3
+const GEMINI_RETRY_BASE_MS = 15_000  // 15s entre tentativas
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
 async function callGemini(parts: any[], maxOutputTokens = 2000, thinkingBudget = 1024): Promise<string> {
   const apiKey = process.env['GOOGLE_API_KEY']
@@ -101,28 +108,54 @@ async function callGemini(parts: any[], maxOutputTokens = 2000, thinkingBudget =
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`
 
-  const responseText = await httpsPost(url, {
+  const body = {
     contents: [{ parts }],
     generationConfig: {
       temperature: 0.1,
       maxOutputTokens,
       thinkingConfig: { thinkingBudget },
     },
-  })
+  }
 
-  let parsed: any
-  try { parsed = JSON.parse(responseText) } catch { throw new Error('Resposta inválida da API Gemini') }
-  if (parsed?.error) throw new Error(`Erro Gemini: ${parsed.error.message ?? JSON.stringify(parsed.error)}`)
+  let lastError = ''
 
-  // gemini-2.5-flash retorna parts com thought:true — filtrar
-  const responseParts: any[] = parsed?.candidates?.[0]?.content?.parts ?? []
-  const textContent = responseParts
-    .filter((p: any) => !p.thought && typeof p.text === 'string')
-    .map((p: any) => p.text as string)
-    .join('')
+  for (let attempt = 1; attempt <= GEMINI_MAX_RETRIES; attempt++) {
+    const responseText = await httpsPost(url, body)
 
-  if (!textContent) throw new Error('Conteúdo vazio na resposta do Gemini')
-  return textContent
+    let parsed: any
+    try { parsed = JSON.parse(responseText) } catch { throw new Error('Resposta inválida da API Gemini') }
+
+    // Rate-limit (429) ou quota temporária: aguarda e tenta novamente
+    if (parsed?.error) {
+      const code: number = parsed.error.code ?? 0
+      const msg: string = parsed.error.message ?? JSON.stringify(parsed.error)
+
+      if (code === 429 && attempt < GEMINI_MAX_RETRIES) {
+        // Tenta extrair o delay sugerido pela API ("retry in X.Xs")
+        const match = msg.match(/retry in ([0-9.]+)s/i)
+        const delaySec = match ? Math.ceil(parseFloat(match[1]!) * 1.1) : attempt * GEMINI_RETRY_BASE_MS / 1000
+        const delayMs = Math.min(delaySec * 1000, 90_000)  // máx 90s
+        console.warn(`[Gemini] rate-limit (tentativa ${attempt}/${GEMINI_MAX_RETRIES}), aguardando ${delayMs / 1000}s...`)
+        lastError = msg
+        await sleep(delayMs)
+        continue
+      }
+
+      throw new Error(`Erro Gemini: ${msg}`)
+    }
+
+    // gemini-2.5-flash retorna parts com thought:true — filtrar
+    const responseParts: any[] = parsed?.candidates?.[0]?.content?.parts ?? []
+    const textContent = responseParts
+      .filter((p: any) => !p.thought && typeof p.text === 'string')
+      .map((p: any) => p.text as string)
+      .join('')
+
+    if (!textContent) throw new Error('Conteúdo vazio na resposta do Gemini')
+    return textContent
+  }
+
+  throw new Error(`Erro Gemini após ${GEMINI_MAX_RETRIES} tentativas: ${lastError}`)
 }
 
 function extractJsonArray(text: string): any[] {
