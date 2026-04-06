@@ -193,24 +193,44 @@ export async function corrigirFolhaEstruturada(
 
   const criterios = buildCriteriosDisciplina(disciplina)
 
-  const prompt = `Você é um professor corrigindo a folha de exercícios de um aluno.
+  const prompt = `Você é um leitor de folhas de exercícios. Sua função é APENAS fazer OCR — ler o que o aluno escreveu na folha.
 
 O gabarito correto é:
 ${listaGabarito}
 ${criterios}
 
-**Classificação de status para cada questão:**
-- "correta": resposta do aluno está correta
-- "incorreta_por_ortografia": erro de grafia (letra errada, mas não acento)
-- "incorreta_por_acentuacao": falta ou erro de acento/til/cedilha
-- "incorreta_por_pontuacao": falta ou erro de pontuação (vírgula, ponto, etc)
-- "incorreta_por_regra": erro conceitual, de cálculo ou regra gramatical
-- "revisar": resposta ilegível, ambígua ou confiança < 0.6 — professor deve revisar manualmente
+════════════════════════════════════════════════════
+REGRA ABSOLUTA — TRANSCRIÇÃO LITERAL (não negociável):
+════════════════════════════════════════════════════
+O campo "respostaAluno" DEVE ser copiado EXATAMENTE como o aluno escreveu,
+caractere por caractere. NUNCA corrija, normalize ou ajuste.
+
+✗ PROIBIDO: aluno escreveu "facíl" → você devolve "fácil"
+✗ PROIBIDO: aluno escreveu "Voce" → você devolve "você"
+✗ PROIBIDO: aluno escreveu "támbem" → você devolve "também"
+✗ PROIBIDO: aluno escreveu "juíz" → você devolve "juiz"
+
+✓ CORRETO: preserve o acento exatamente onde o aluno colocou, mesmo que errado
+✓ CORRETO: preserve maiúsculas/minúsculas exatamente como escritas
+✓ CORRETO: para listas de palavras, transcreva a linha completa como escrita
+
+A avaliação de correto/incorreto SERÁ FEITA PELO SISTEMA, não por você.
+Sua única responsabilidade é transcrever o que está na folha.
+════════════════════════════════════════════════════
 
 **Para cada questão:**
-- Objetivas (A/B/C/D/E): identifique a letra marcada, compare com gabarito
-- Numéricas: identifique o número escrito, compare numericamente
-- Discursivas: transcreva o texto exato no textoDetectado, avalie semanticamente
+- Objetivas (A/B/C/D/E): identifique a letra marcada (respostaAluno = a letra)
+- Numéricas: identifique o número escrito (respostaAluno = o número como escrito)
+- Discursivas: respostaAluno = transcrição LITERAL do texto escrito pelo aluno
+  textoDetectado = mesma transcrição literal (nunca null para discursivas legíveis)
+
+**Classificação de status (sua melhor estimativa — o sistema vai verificar):**
+- "correta": parece correto
+- "incorreta_por_ortografia": erro de grafia (letra errada, mas não acento)
+- "incorreta_por_acentuacao": falta ou erro de acento/til/cedilha
+- "incorreta_por_pontuacao": falta ou erro de pontuação
+- "incorreta_por_regra": erro conceitual ou de cálculo
+- "revisar": ilegível ou muito ambíguo
 
 Retorne APENAS um JSON válido, sem texto antes ou depois:
 [
@@ -229,9 +249,8 @@ Retorne APENAS um JSON válido, sem texto antes ou depois:
 ]
 
 Regras adicionais:
-- Se confianca < 0.6 ou resposta ilegível: statusCorrecao = "revisar", correta = false
+- Se ilegível ou confianca < 0.5: statusCorrecao = "revisar", correta = false
 - Para discursivas: avaliacaoIA = "correto" | "parcial" | "incorreto", justificativa em 1-2 frases
-- Se avaliacaoIA = "parcial": statusCorrecao = "revisar" (professor decide)
 - Retorne uma entrada para CADA questão do gabarito`
 
   const parts: any[] = [
@@ -270,18 +289,19 @@ Regras adicionais:
     let motorJustificativa: string | undefined
 
     // ── Motor pedagógico (pós-processamento para TODAS as questões) ──
-    // Para objetivas/numéricas: motor é mais preciso que Gemini para classificar
-    // o tipo de erro. Para discursivas (ex: listas de palavras em português):
-    // motor detecta erros de acento/ortografia que o Gemini frequentemente ignora.
-    // O motor só sobrescreve quando chega a conclusão específica (não 'revisar'),
-    // ou quando a IA também ficou em dúvida — preservando avaliação semântica do
-    // Gemini quando motor não consegue classificar (textos muito distintos).
-    // Confiança mínima: 0.55 (abaixo → IA decide).
-    if (respostaAluno !== null && (confianca === null || confianca >= 0.55)) {
+    // Garante que o motor sempre rode, independente da confiança do Gemini.
+    // Para discursivas, usa textoDetectado como fallback se Gemini normalizou
+    // respostaAluno (ex: corrigiu "facíl" para "fácil" no JSON).
+    const respostaParaMotor: string | null =
+      tipo === 'discursiva' && r.textoDetectado != null && String(r.textoDetectado).trim().length > 0
+        ? String(r.textoDetectado)  // textoDetectado tende a ser mais verbatim
+        : respostaAluno
+
+    if (respostaParaMotor !== null) {
       const motorResult = analisarRespostaPedagogicamente({
         disciplina: disciplina ?? 'geral',
         gabarito: respostaGabarito,
-        respostaAluno,
+        respostaAluno: respostaParaMotor,
       })
       if (motorResult.status !== 'revisar' || status === 'revisar') {
         status = motorResult.status as StatusCorrecaoQuestao
@@ -307,11 +327,17 @@ Regras adicionais:
       }
     }
 
+    // Para discursivas, preferir textoDetectado como respostaAluno exibida
+    // (mais verbatim); para objetivas/numéricas, usar o valor original.
+    const respostaExibida = tipo === 'discursiva' && respostaParaMotor !== null
+      ? respostaParaMotor
+      : respostaAluno
+
     return {
       questaoOrdem: Number(r.questaoOrdem),
       tipo,
       respostaGabarito,
-      respostaAluno,
+      respostaAluno: respostaExibida,
       confianca,
       correta,
       statusCorrecao: status,
