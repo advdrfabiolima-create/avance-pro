@@ -5,12 +5,13 @@
  * 1. Vazio → revisar
  * 2. Igualdade exata → correta
  * 3. Igualdade normalizada (espaços/case) → correta
- * 4. Diferença só por acentuação → incorreta_por_acentuacao
- * 5. Diferença só por pontuação → incorreta_por_pontuacao
- * 6. Diferença só por maiúscula → incorreta_por_maiuscula
- * 7. Diferença parece ortográfica (textos próximos) → incorreta_por_ortografia
- * 8. Diferença por acentuação + pontuação juntos → incorreta_por_acentuacao (primário)
- * 9. Muito diferente → revisar
+ * 4. Lista de palavras → avaliação palavra a palavra (detecta TODOS os erros)
+ * 5. Diferença só por acentuação → incorreta_por_acentuacao
+ * 6. Diferença só por pontuação → incorreta_por_pontuacao
+ * 7. Diferença só por maiúscula → incorreta_por_maiuscula
+ * 8. Diferença parece ortográfica (textos próximos) → incorreta_por_ortografia
+ * 9. Diferença por acentuação + pontuação juntos → incorreta_por_acentuacao (primário)
+ * 10. Muito diferente → revisar
  */
 
 import type { CriteriosCorrecao, SaidaMotor } from '../types'
@@ -28,6 +29,101 @@ import {
   removerAcentos,
 } from '../normalizer'
 import { simboloPara } from '../symbols'
+
+// ─── Detecção e análise de lista de palavras ──────────────────────────────────
+
+/**
+ * Tenta separar um texto por separadores de lista (travessão, barra, vírgula, ponto-e-vírgula).
+ * Retorna array com 1 elemento se não encontrar separadores.
+ */
+function separarListaPalavras(texto: string): string[] {
+  // Prioridade: travessão/barra (mais comum em Kumon) → vírgula → ponto-e-vírgula
+  for (const sep of [/\s*[–—\/]\s*/, /\s*,\s+(?=[A-Za-zÀ-ÖØ-öø-ÿ0-9])/, /\s*;\s*/]) {
+    const partes = texto.split(sep).map((s) => s.trim()).filter(Boolean)
+    if (partes.length >= 2) return partes
+  }
+  return [texto.trim()].filter(Boolean)
+}
+
+/** Retorna true se o gabarito parecer uma lista de palavras/expressões curtas. */
+function ehListaPalavras(gabarito: string): boolean {
+  const partes = separarListaPalavras(gabarito)
+  // 2+ itens, nenhum item com pontuação terminal (ponto, ?, !) = lista de palavras
+  return partes.length >= 2 && !gabarito.match(/[.?!]/)
+}
+
+/**
+ * Prioridade de gravidade para combinar status de múltiplas palavras.
+ * Quanto menor o número, mais grave.
+ */
+function gravidadeStatus(status: SaidaMotor['status']): number {
+  const ordem: Record<string, number> = {
+    revisar: 0,
+    incorreta_por_ortografia: 1,
+    incorreta_por_regra: 2,
+    incorreta_por_acentuacao: 3,
+    incorreta_por_pontuacao: 4,
+    incorreta_por_maiuscula: 5,
+    correta: 99,
+  }
+  return ordem[status] ?? 0
+}
+
+/**
+ * Analisa questão discursiva cujo gabarito é uma lista de palavras.
+ * Compara cada palavra individualmente e coleta TODOS os erros encontrados.
+ */
+function analisarListaPalavras(
+  gabarito: string,
+  resposta: string,
+  criterios: CriteriosCorrecao
+): SaidaMotor {
+  const gabPartes = separarListaPalavras(gabarito)
+  const resPartes = separarListaPalavras(resposta)
+
+  const todosMotivos: string[] = []
+  let piorStatus: SaidaMotor['status'] = 'correta'
+
+  for (let i = 0; i < gabPartes.length; i++) {
+    const gab = gabPartes[i] ?? ''
+    const res = resPartes[i] ?? ''
+
+    if (!res.trim()) {
+      todosMotivos.push(`"${gab}": não respondida`)
+      if (gravidadeStatus(piorStatus) > gravidadeStatus('revisar')) {
+        piorStatus = 'revisar'
+      }
+      continue
+    }
+
+    // Avalia palavra por palavra com o motor completo (sem recursão de lista)
+    const parcial = analisarPalavraSimples(gab, res, criterios)
+    if (parcial.status !== 'correta') {
+      const motivo = parcial.motivos.length > 0
+        ? `"${res}" (correto: "${gab}"): ${parcial.motivos.join(', ')}`
+        : `"${res}" incorreta (correto: "${gab}")`
+      todosMotivos.push(motivo)
+
+      if (gravidadeStatus(parcial.status) < gravidadeStatus(piorStatus)) {
+        piorStatus = parcial.status
+      }
+    }
+  }
+
+  if (piorStatus === 'correta') {
+    return resultado('correta', '', normalizarBase(gabarito), normalizarBase(resposta), 'lista_ok')
+  }
+
+  return resultadoMultiplo(
+    piorStatus,
+    todosMotivos,
+    normalizarBase(gabarito),
+    normalizarBase(resposta),
+    'lista_erros'
+  )
+}
+
+// ─── Motor principal ──────────────────────────────────────────────────────────
 
 export function analisarPortugues(
   gabarito: string,
@@ -50,7 +146,6 @@ export function analisarPortugues(
 
   // 3. Igualdade normalizada (espaços extras + case)
   if (igualNormalizado(gabarito, resposta)) {
-    // Se só difere em maiúscula e isso é exigido, marcar
     if (criterios.exigirMaiusculaInicial && iniciaComMinuscula(resposta)) {
       return resultado('incorreta_por_maiuscula',
         'Letra inicial minúscula — frase deve começar com maiúscula',
@@ -59,29 +154,68 @@ export function analisarPortugues(
     return resultado('correta', '', gabN, resN, 'normalizada')
   }
 
-  // 3b. Se acentuação não é exigida e o único erro é acento → correta
+  // 4. Lista de palavras → avalia cada palavra e coleta TODOS os erros
+  if (ehListaPalavras(gabarito)) {
+    return analisarListaPalavras(gabarito, resposta, criterios)
+  }
+
+  // 5–10. Análise de palavra/frase simples
+  return analisarPalavraSimples(gabarito, resposta, criterios)
+}
+
+/**
+ * Análise de uma palavra ou frase simples (sem lista).
+ * Chamado tanto diretamente pelo motor quanto recursivamente pela análise de lista.
+ */
+function analisarPalavraSimples(
+  gabarito: string,
+  resposta: string,
+  criterios: CriteriosCorrecao
+): SaidaMotor {
+  const motivos: string[] = []
+  const gabN = normalizarBase(gabarito)
+  const resN = normalizarBase(resposta)
+
+  if (!resposta.trim()) {
+    return resultado('revisar', 'Resposta em branco', gabN, resN, 'vazio')
+  }
+
+  if (gabarito.trim() === resposta.trim()) {
+    return resultado('correta', '', gabN, resN, 'exata')
+  }
+
+  if (igualNormalizado(gabarito, resposta)) {
+    if (criterios.exigirMaiusculaInicial && iniciaComMinuscula(resposta)) {
+      return resultado('incorreta_por_maiuscula',
+        'Letra inicial minúscula',
+        gabN, resN, 'maiuscula_inicial')
+    }
+    return resultado('correta', '', gabN, resN, 'normalizada')
+  }
+
+  // Se acentuação não é exigida e o único erro é acento → correta
   if (!criterios.exigirAcentuacao && difereSomentePorAcentuacao(gabarito, resposta)) {
     return resultado('correta', '', gabN, resN, 'acentuacao_nao_exigida')
   }
 
-  // 4. Diferença SOMENTE por maiúscula
+  // Diferença SOMENTE por maiúscula
   if (difereSomentePorMaiuscula(gabarito, resposta)) {
     if (!criterios.exigirMaiusculaInicial) {
       return resultado('correta', '', gabN, resN, 'maiuscula_ignorada')
     }
     const motivo = iniciaComMinuscula(resposta)
-      ? 'Letra inicial minúscula — frase deve começar com maiúscula'
+      ? 'Letra inicial minúscula'
       : 'Uso incorreto de maiúscula/minúscula'
     return resultado('incorreta_por_maiuscula', motivo, gabN, resN, 'maiuscula')
   }
 
-  // 5. Diferença SOMENTE por acentuação
+  // Diferença SOMENTE por acentuação
   if (criterios.exigirAcentuacao && difereSomentePorAcentuacao(gabarito, resposta)) {
-    const motivo = detectarMotivoAcentuacao(gabarito, resposta)
+    const motivo = detectarMotivosAcentuacao(gabarito, resposta)
     return resultado('incorreta_por_acentuacao', motivo, gabN, resN, 'acentuacao')
   }
 
-  // 6a. Diferença SOMENTE por pontuação final
+  // Diferença SOMENTE por pontuação final
   if (criterios.exigirPontuacao && difereSomentePorPontuacaoFinal(gabarito, resposta)) {
     if (criterios.tolerarPontuacaoFinalAusente) {
       return resultado('correta', '', gabN, resN, 'pontuacao_final_tolerada')
@@ -91,62 +225,70 @@ export function analisarPortugues(
       gabN, resN, 'pontuacao_final')
   }
 
-  // 6b. Diferença SOMENTE por pontuação (interna)
+  // Diferença SOMENTE por pontuação (interna)
   if (criterios.exigirPontuacao && difereSomentePorPontuacao(gabarito, resposta)) {
     return resultado('incorreta_por_pontuacao',
       'Pontuação incorreta ou ausente',
       gabN, resN, 'pontuacao')
   }
 
-  // 7. Diferença por acentuação + pontuação juntos
+  // Diferença por acentuação + pontuação juntos
   if (criterios.exigirAcentuacao && criterios.exigirPontuacao) {
     const gSemAcPt = removerAcentos(normalizarSemPontuacao(gabarito))
     const rSemAcPt = removerAcentos(normalizarSemPontuacao(resposta))
     if (gSemAcPt === rSemAcPt) {
-      // Correto no conteúdo, erros formais apenas
       const haAcento = normalizarSemAcentos(gabarito) !== normalizarSemAcentos(resposta)
       const haPontuacao = normalizarSemPontuacao(gabarito) !== normalizarSemPontuacao(resposta)
-      if (haAcento) motivos.push(detectarMotivoAcentuacao(gabarito, resposta))
+      if (haAcento) motivos.push(detectarMotivosAcentuacao(gabarito, resposta))
       if (haPontuacao) motivos.push('Pontuação incorreta ou ausente')
-      // Status primário: acentuação (mais grave pedagogicamente no Kumon)
       return resultadoMultiplo('incorreta_por_acentuacao', motivos, gabN, resN, 'acentuacao+pontuacao')
     }
   }
 
-  // 8. Parece erro ortográfico (textos próximos mas com grafia diferente)
+  // Parece erro ortográfico (textos próximos mas com grafia diferente)
   if (criterios.exigirOrtografiaPerfeita && parecerErroOrtografico(gabarito, resposta)) {
     const motivo = detectarMotivoOrtografico(gabarito, resposta)
     return resultado('incorreta_por_ortografia', motivo, gabN, resN, 'ortografia')
   }
 
-  // 9. Muito diferente ou não classificável com segurança → revisar
+  // Muito diferente ou não classificável → revisar
   return resultado('revisar',
-    'Resposta muito diferente do gabarito ou não classificável automaticamente — revisar manualmente',
+    'Resposta muito diferente do gabarito — revisar manualmente',
     gabN, resN, 'nao_classificavel')
 }
 
 // ─── Helpers de detecção de motivo ───────────────────────────────────────────
 
-function detectarMotivoAcentuacao(gabarito: string, resposta: string): string {
+/**
+ * Detecta TODOS os acentos incorretos ou ausentes, comparando palavra a palavra.
+ * Retorna string com todos os erros encontrados separados por " | ".
+ */
+function detectarMotivosAcentuacao(gabarito: string, resposta: string): string {
   const palavrasGab = gabarito.split(/\s+/)
   const palavrasResp = resposta.split(/\s+/)
+  const motivos: string[] = []
 
-  // Encontra a primeira palavra diferente para dar motivo específico
   for (let i = 0; i < palavrasGab.length; i++) {
-    const pg = palavrasGab[i] ?? ''
-    const pr = palavrasResp[i] ?? ''
-    if (pg.normalize('NFC') !== pr.normalize('NFC')) {
-      const pgSem = removerAcentos(pg.toLowerCase())
-      const prSem = removerAcentos(pr.toLowerCase())
-      if (pgSem === prSem) {
-        // Detecta tipo de acento
-        if (pg === 'à' || pg === 'às') return `Ausência de crase em "${pg}" — use crase antes de palavras femininas com "a"`
-        if (pg.includes('ç') && !pr.includes('ç')) return `Cedilha ausente em "${pr}" — correto: "${pg}"`
-        return `Acento incorreto ou ausente em "${pr}" — correto: "${pg}"`
-      }
+    const pg = (palavrasGab[i] ?? '').normalize('NFC')
+    const pr = (palavrasResp[i] ?? '').normalize('NFC')
+    if (pg === pr) continue
+
+    const pgSem = removerAcentos(pg.toLowerCase())
+    const prSem = removerAcentos(pr.toLowerCase())
+    if (pgSem !== prSem) continue  // não é só acento, é outra diferença
+
+    if (pg === 'à' || pg === 'às') {
+      motivos.push(`Ausência de crase em "${pg}"`)
+    } else if (pg.includes('ç') && !pr.includes('ç')) {
+      motivos.push(`Cedilha ausente em "${pr}" — correto: "${pg}"`)
+    } else {
+      motivos.push(`Acento incorreto em "${pr}" — correto: "${pg}"`)
     }
   }
-  return 'Ausência ou uso incorreto de acento/crase'
+
+  return motivos.length > 0
+    ? motivos.join(' | ')
+    : 'Ausência ou uso incorreto de acento/crase'
 }
 
 function detectarMotivoOrtografico(gabarito: string, resposta: string): string {

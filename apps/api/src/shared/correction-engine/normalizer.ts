@@ -29,7 +29,9 @@ export function normalizarEspacos(texto: string): string {
  * Preserva acentos e pontuação.
  */
 export function normalizarBase(texto: string): string {
-  return normalizarEspacos(texto).toLowerCase()
+  // NFC normaliza forma Unicode (evita falsos positivos quando OCR retorna NFD
+  // para um acento que no banco está em NFC — ex: "caf\u0301" vs "caf\u00e9")
+  return normalizarEspacos(texto).normalize('NFC').toLowerCase()
 }
 
 /**

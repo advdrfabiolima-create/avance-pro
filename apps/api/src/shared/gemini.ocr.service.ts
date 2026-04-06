@@ -289,25 +289,21 @@ Regras adicionais:
     let motorJustificativa: string | undefined
 
     // ── Motor pedagógico (pós-processamento para TODAS as questões) ──
-    // Garante que o motor sempre rode, independente da confiança do Gemini.
-    // Para discursivas, usa textoDetectado como fallback se Gemini normalizou
-    // respostaAluno (ex: corrigiu "facíl" para "fácil" no JSON).
-    const respostaParaMotor: string | null =
-      tipo === 'discursiva' && r.textoDetectado != null && String(r.textoDetectado).trim().length > 0
-        ? String(r.textoDetectado)  // textoDetectado tende a ser mais verbatim
-        : respostaAluno
-
-    if (respostaParaMotor !== null) {
+    // Usa respostaAluno (campo principal — instruído a ser verbatim no prompt).
+    // textoDetectado foi testado como fallback mas Gemini também normaliza acentos
+    // nesse campo, gerando falsos positivos (ex: "café" correto → flagged wrong).
+    if (respostaAluno !== null) {
       const motorResult = analisarRespostaPedagogicamente({
         disciplina: disciplina ?? 'geral',
         gabarito: respostaGabarito,
-        respostaAluno: respostaParaMotor,
+        respostaAluno,
       })
       if (motorResult.status !== 'revisar' || status === 'revisar') {
         status = motorResult.status as StatusCorrecaoQuestao
         correta = motorResult.status === 'correta'
         if (motorResult.motivos.length > 0) {
-          motorJustificativa = motorResult.motivos[0]!
+          // Junta TODOS os motivos (para listas de palavras, cada erro é listado)
+          motorJustificativa = motorResult.motivos.join(' | ')
         }
       }
     }
@@ -327,11 +323,7 @@ Regras adicionais:
       }
     }
 
-    // Para discursivas, preferir textoDetectado como respostaAluno exibida
-    // (mais verbatim); para objetivas/numéricas, usar o valor original.
-    const respostaExibida = tipo === 'discursiva' && respostaParaMotor !== null
-      ? respostaParaMotor
-      : respostaAluno
+    const respostaExibida = respostaAluno
 
     return {
       questaoOrdem: Number(r.questaoOrdem),
