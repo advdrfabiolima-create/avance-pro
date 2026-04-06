@@ -10,6 +10,7 @@
 
 import https from 'https'
 import { analisarRespostaPedagogicamente } from './correction-engine'
+import { aplicarAjuste } from './learning'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -253,7 +254,7 @@ Regras adicionais:
     'incorreta_por_pontuacao', 'incorreta_por_maiuscula', 'incorreta_por_regra', 'revisar',
   ]
 
-  return raw.map((r: any): ResultadoQuestaoEstruturado => {
+  return Promise.all(raw.map(async (r: any): Promise<ResultadoQuestaoEstruturado> => {
     const tipo = String(r.tipo ?? 'objetiva')
     const respostaAluno = r.respostaAluno != null ? String(r.respostaAluno) : null
     const respostaGabarito = String(r.respostaGabarito ?? '')
@@ -291,6 +292,21 @@ Regras adicionais:
       }
     }
 
+    // ── Ajustes aprendidos (3ª camada, após motor) ───────────────────────────
+    // Consulta regras que o professor ensinou ao sistema. Só aplica quando
+    // confiança ≥ 0.5 (≥ 10 ocorrências confirmadas). Nunca aplica a revisar
+    // com baixa confiança — fallback para revisão manual preservado.
+    if (respostaAluno !== null) {
+      const ajuste = await aplicarAjuste(disciplina ?? 'geral', respostaGabarito, respostaAluno, status)
+      if (ajuste) {
+        const statusAnterior = status
+        status = ajuste.statusAjustado as StatusCorrecaoQuestao
+        correta = status === 'correta'
+        const pct = Math.round(ajuste.confianca * 100)
+        motorJustificativa = `[Aprendizado: ${pct}% conf., ${ajuste.ocorrencias}x] ${motorJustificativa ?? `${statusAnterior} → ${status}`}`
+      }
+    }
+
     return {
       questaoOrdem: Number(r.questaoOrdem),
       tipo,
@@ -305,7 +321,7 @@ Regras adicionais:
       // Questões com status 'revisar' precisam de decisão manual; demais são auto-revisadas
       revisadaManual: status === 'revisar' ? false : true,
     }
-  })
+  }))
 }
 
 // ─── Extração de gabarito ─────────────────────────────────────────────────────

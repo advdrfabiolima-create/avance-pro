@@ -1084,3 +1084,42 @@ model CorrecaoAvulsaQuestao {
   @@unique([correcaoId, ordem])
   @@map("correcoes_avulsas_questoes")
 }
+
+// ─── Aprendizado Contínuo ─────────────────────────────────────────────────────
+
+/// Registra cada override feito pelo professor na revisão pedagógica.
+/// Alimenta o learningService que detecta padrões e gera ajustes.
+model CorrecaoFeedback {
+  id            String   @id @default(uuid())
+  disciplina    String   @db.VarChar(50)
+  gabarito      String   @db.VarChar(500)
+  respostaAluno String   @db.VarChar(500) @map("resposta_aluno")
+  statusIa      String   @db.VarChar(50)  @map("status_ia")
+  statusFinal   String   @db.VarChar(50)  @map("status_final")
+  ajustado      Boolean  @default(false)  // professor discordou da IA
+  motivoIa      String?  @db.Text         @map("motivo_ia")
+  processado    Boolean  @default(false)  // já incluído no aprendizado
+  criadoEm      DateTime @default(now())  @map("criado_em")
+
+  @@map("correcoes_feedback")
+}
+
+/// Regras aprendidas: quando a IA classifica como X e o professor
+/// consistentemente corrige para Y, cria-se um ajuste automático.
+model CorrecaoAjuste {
+  id              String   @id @default(uuid())
+  disciplina      String   @db.VarChar(50)
+  tipoErro        String   @db.VarChar(50)  @map("tipo_erro")       // status original da IA
+  statusCorrigido String   @db.VarChar(50)  @map("status_corrigido") // decisão do professor
+  padraoChave     String   @db.VarChar(64)  @map("padrao_chave")    // SHA256 da chave normalizada
+  gabaritoExemplo String?  @db.VarChar(300) @map("gabarito_exemplo")
+  respostaExemplo String?  @db.VarChar(300) @map("resposta_exemplo")
+  ocorrencias     Int      @default(1)
+  confianca       Float    @default(0.0)   // 0.0–1.0 (≥0.5 = aplica automaticamente)
+  ativo           Boolean  @default(true)
+  criadoEm        DateTime @default(now()) @map("criado_em")
+  atualizadoEm    DateTime @updatedAt      @map("atualizado_em")
+
+  @@unique([disciplina, tipoErro, statusCorrigido, padraoChave])
+  @@map("correcoes_ajustes")
+}

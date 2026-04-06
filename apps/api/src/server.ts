@@ -33,6 +33,7 @@ import { bibliotecaRoutes } from './modules/biblioteca/biblioteca.routes'
 import { trilhasRoutes } from './modules/trilhas/trilhas.routes'
 import { listasExerciciosRoutes } from './modules/listas-exercicios/listas.routes'
 import { correcaoAvulsaRoutes } from './modules/correcao-avulsa/correcao-avulsa.routes'
+import { inicializarCache } from './shared/learning'
 
 /**
  * Aplica colunas novas que possam ainda não existir no banco de produção.
@@ -51,15 +52,47 @@ async function applyPendingColumns() {
     `ALTER TABLE "correcoes_avulsas" ADD COLUMN IF NOT EXISTS "atualizado_em" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
     // Enum: adiciona valor novo sem quebrar dados existentes
     `ALTER TYPE "StatusCorrecaoQuestao" ADD VALUE IF NOT EXISTS 'incorreta_por_maiuscula'`,
+    // Tabelas de aprendizado contínuo
+    `CREATE TABLE IF NOT EXISTS correcoes_feedback (
+       id            TEXT        NOT NULL DEFAULT gen_random_uuid()::text,
+       disciplina    VARCHAR(50) NOT NULL,
+       gabarito      VARCHAR(500) NOT NULL,
+       resposta_aluno VARCHAR(500) NOT NULL,
+       status_ia     VARCHAR(50) NOT NULL,
+       status_final  VARCHAR(50) NOT NULL,
+       ajustado      BOOLEAN     NOT NULL DEFAULT false,
+       motivo_ia     TEXT,
+       processado    BOOLEAN     NOT NULL DEFAULT false,
+       criado_em     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       CONSTRAINT correcoes_feedback_pkey PRIMARY KEY (id)
+     )`,
+    `CREATE TABLE IF NOT EXISTS correcoes_ajustes (
+       id               TEXT        NOT NULL DEFAULT gen_random_uuid()::text,
+       disciplina       VARCHAR(50) NOT NULL,
+       tipo_erro        VARCHAR(50) NOT NULL,
+       status_corrigido VARCHAR(50) NOT NULL,
+       padrao_chave     VARCHAR(64) NOT NULL,
+       gabarito_exemplo VARCHAR(300),
+       resposta_exemplo VARCHAR(300),
+       ocorrencias      INTEGER     NOT NULL DEFAULT 1,
+       confianca        DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+       ativo            BOOLEAN     NOT NULL DEFAULT true,
+       criado_em        TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       atualizado_em    TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       CONSTRAINT correcoes_ajustes_pkey PRIMARY KEY (id),
+       CONSTRAINT correcoes_ajustes_unique UNIQUE (disciplina, tipo_erro, status_corrigido, padrao_chave)
+     )`,
   ]
   for (const sql of queries) {
     await prisma.$executeRawUnsafe(sql)
   }
-  console.log('[startup] Colunas verificadas/aplicadas.')
+  console.log('[startup] Colunas/tabelas verificadas/aplicadas.')
 }
 
 async function main() {
   await applyPendingColumns()
+  // Pré-carrega ajustes aprendidos em memória (non-blocking)
+  inicializarCache().catch(() => {})
 
   const app = Fastify({
     logger: true,

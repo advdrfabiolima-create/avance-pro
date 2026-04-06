@@ -8,6 +8,7 @@ import {
   corrigirFolhaEstruturada,
 } from '../../shared/gemini.ocr.service'
 import type { GabaritoItem } from '../../shared/gemini.ocr.service'
+import { registrarFeedbacks, processarFeedbacksPendentes } from '../../shared/learning'
 
 const GabaritoItemSchema = z.object({
   ordem: z.number().int().min(1),
@@ -305,6 +306,36 @@ export async function correcaoAvulsaRoutes(app: FastifyInstance): Promise<void> 
           aluno: { select: { id: true, nome: true, foto: true } },
         },
       })
+
+      // ── Captura feedback para aprendizado contínuo ──────────────────────────
+      // Execução não-bloqueante: não atrasa a resposta ao usuário
+      ;(async () => {
+        try {
+          const disciplina = correcao.disciplina ?? 'geral'
+          const feedbacks = correcao.questoes
+            .filter((q) => q.respostaAluno !== null)
+            .map((q) => {
+              const statusFinal = (q.statusManual ?? q.statusCorrecao) as string
+              const ajustado = q.statusManual !== null && q.statusManual !== q.statusCorrecao
+              return {
+                disciplina,
+                gabarito: q.respostaGabarito,
+                respostaAluno: q.respostaAluno!,
+                statusIa: q.statusCorrecao as string,
+                statusFinal,
+                ajustado,
+                motivoIa: q.justificativa,
+              }
+            })
+
+          await registrarFeedbacks(feedbacks)
+          // Processa padrões em background — só ajustes com professor discordando
+          const temAjustes = feedbacks.some((f) => f.ajustado)
+          if (temAjustes) await processarFeedbacksPendentes()
+        } catch (err: any) {
+          console.error('[learning] Erro ao registrar feedback:', err?.message)
+        }
+      })()
 
       return reply.send({ success: true, data: updated })
     }
